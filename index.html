@@ -456,7 +456,11 @@ async function api(endpoint, body = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ hash: HASH, ...body })
   });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  if (!r.ok) {
+    // Try to extract Navixy's error description from the body before giving up
+    try { const e = await r.json(); throw new Error(e.status?.description || e.status?.code || `HTTP ${r.status}`); }
+    catch(e) { throw (e.message.startsWith('HTTP') ? e : e); }
+  }
   const d = await r.json();
   if (!d.success) throw new Error(d.status?.description || d.status?.code || 'API error');
   return d;
@@ -597,7 +601,7 @@ async function fetchMileage(ids) {
   Object.entries(cache.mileageResult).forEach(([tid, dayMap]) => {
     let tot = 0;
     Object.entries(dayMap).forEach(([date, val]) => {
-      const km = typeof val === 'object' ? (val.mileage||0) : (val||0);
+      const km = (typeof val === 'object' && val !== null) ? (val.mileage||0) : (val||0);
       if (daily[date]!==undefined) daily[date] += km;
       tot += km;
     });
