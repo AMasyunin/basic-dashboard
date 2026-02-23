@@ -223,6 +223,7 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
       <span id="userEmail">—</span>
     </div>
+    <span class="header-meta" id="serverBadge" style="background:rgba(255,255,255,.12);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:.4px"></span>
     <span class="header-meta" id="lastRefreshLabel">—</span>
     <button class="btn btn-edit" id="editBtn" onclick="toggleEditMode()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
@@ -297,8 +298,8 @@
 // ════════════════════════════════════════════════
 const params  = new URLSearchParams(window.location.search);
 const HASH    = params.get('session_key') || params.get('hash') || params.get('session_hash') || params.get('key') || params.get('token') || '';
-const SERVER  = (params.get('server') || 'https://api.eu.navixy.com').replace(/\/$/, '');
-const BASE    = `${SERVER}/v2`;
+let   SERVER  = (params.get('server') || '').replace(/\/$/, '');  // resolved by detectServer()
+let   BASE    = '';
 const HISTORY_KEY  = 'nvx_conn_history_' + HASH.slice(0, 8);
 const LAYOUT_KEY   = 'nvx_layout_v2';
 const MAX_HISTORY  = 120; // data points
@@ -993,6 +994,61 @@ function addTile(tileId) {
 }
 
 // ════════════════════════════════════════════════
+// SERVER AUTO-DETECTION
+// ════════════════════════════════════════════════
+const KNOWN_SERVERS = [
+  { url: 'https://api.eu.navixy.com', label: 'EU' },
+  { url: 'https://api.us.navixy.com', label: 'US' },
+];
+const SERVER_CACHE_KEY = 'nvx_server_' + HASH.slice(0, 8);
+
+async function detectServer() {
+  // 1. Explicit ?server= param always wins — skip detection
+  if (SERVER) {
+    BASE = `${SERVER}/v2`;
+    return null;
+  }
+
+  // 2. Use cached value from this session
+  const cached = sessionStorage.getItem(SERVER_CACHE_KEY);
+  if (cached) {
+    SERVER = cached;
+    BASE = `${SERVER}/v2`;
+    return null; // user info still needs a separate call
+  }
+
+  // 3. Probe known servers in parallel — first successful auth wins
+  const probe = async ({ url, label }) => {
+    const r = await fetch(`${url}/v2/user/get_info`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hash: HASH })
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(`${label}: auth failed`);
+    return { url, label, userInfo: d.user_info };
+  };
+
+  try {
+    const result = await Promise.any(KNOWN_SERVERS.map(probe));
+    SERVER = result.url;
+    BASE   = `${SERVER}/v2`;
+    sessionStorage.setItem(SERVER_CACHE_KEY, SERVER);
+    return result; // caller can use .userInfo and .label
+  } catch {
+    // All probes failed — fall back to EU and let normal error handling take over
+    SERVER = KNOWN_SERVERS[0].url;
+    BASE   = `${SERVER}/v2`;
+    return null;
+  }
+}
+
+function showServerBadge(label) {
+  const el = document.getElementById('serverBadge');
+  if (el) el.textContent = label;
+}
+
+// ════════════════════════════════════════════════
 // USER INFO
 // ════════════════════════════════════════════════
 async function loadUserInfo() {
@@ -1050,9 +1106,23 @@ if (!HASH) {
   layout = loadLayout() || DEFAULT_LAYOUT.map(t => ({ ...t }));
   document.getElementById('dashboardRoot').style.display = 'block';
   renderLayout();
-  loadUserInfo();
-  refresh();
-  setInterval(refresh, 60000);
+
+  // Detect server first, then start loading data
+  detectServer().then(result => {
+    if (result) {
+      // Detection gave us user info for free — no extra call needed
+      const login = result.userInfo?.login || result.userInfo?.email || '—';
+      document.getElementById('userEmail').textContent = login;
+      showServerBadge(result.label);
+    } else {
+      // Used cache or explicit param — show badge from stored value
+      const match = KNOWN_SERVERS.find(s => s.url === SERVER);
+      if (match) showServerBadge(match.label);
+      loadUserInfo();
+    }
+    refresh();
+    setInterval(refresh, 60000);
+  });
 }
 </script>
 </body>
