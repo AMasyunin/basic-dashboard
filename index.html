@@ -414,6 +414,7 @@
       </div>
     </div>
   </div>
+  <div id="debugPanel" style="max-width:560px;width:100%;margin-top:16px"></div>
 </div>
 
 <!-- ── Dashboard ── -->
@@ -647,7 +648,13 @@
 // Config
 // ─────────────────────────────────────────────
 const params = new URLSearchParams(window.location.search);
-const HASH   = params.get('hash') || params.get('key') || '';
+// Navixy may pass the session key under different names depending on the platform version
+const HASH   = params.get('hash')
+            || params.get('session_hash')
+            || params.get('session_key')
+            || params.get('key')
+            || params.get('token')
+            || '';
 const SERVER = (params.get('server') || 'https://api.eu.navixy.com').replace(/\/$/, '');
 const BASE   = `${SERVER}/v2`;
 
@@ -661,6 +668,35 @@ let isLoading     = false;
 // ─────────────────────────────────────────────
 if (!HASH) {
   document.getElementById('setupScreen').classList.add('visible');
+  // Show debug panel: list all URL params received so we can see what Navixy passes
+  const allParams = [...params.entries()];
+  const debugEl = document.getElementById('debugPanel');
+  if (allParams.length > 0) {
+    debugEl.innerHTML = `
+      <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:16px 20px;font-size:13px">
+        <div style="font-weight:700;margin-bottom:10px;color:#e65100">
+          ⚠ URL parameters detected but no recognised hash found
+        </div>
+        <div style="color:#616161;margin-bottom:8px">
+          Parameters received (values masked for security):
+        </div>
+        ${allParams.map(([k, v]) => `
+          <div style="font-family:monospace;padding:3px 0;color:#212121">
+            <strong>${k}</strong> = ${k.toLowerCase().includes('hash') || k.toLowerCase().includes('key') || k.toLowerCase().includes('token') ? '••••••••' : v}
+          </div>
+        `).join('')}
+        <div style="margin-top:10px;color:#616161">
+          If you see a hash/key above with a masked value, update the code to read that parameter name.
+        </div>
+      </div>
+    `;
+  } else {
+    debugEl.innerHTML = `
+      <div style="background:#f3f3f3;border:1px solid #e0e0e0;border-radius:10px;padding:14px 20px;font-size:13px;color:#757575">
+        No URL parameters received. If opened from Navixy, ensure <strong>Session key</strong> is enabled in GET parameters.
+      </div>
+    `;
+  }
 } else {
   document.getElementById('dashboard').style.display = 'block';
   refresh();
