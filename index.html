@@ -575,7 +575,7 @@ async function fetchVehicles() {
 }
 
 async function fetchServiceTasks() {
-  const d = await api('/vehicle/service_task/list', { limit: 10000 });
+  const d = await api('/vehicle/service_task/list');
   const tasks = d.list || [];
   cache.serviceTasks = tasks;
   cache.svcCounts = { expired:0, notified:0, created:0, done:0 };
