@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navixy Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
   <style>
     :root {
       --bg: #f0f2f5;
       --card: #ffffff;
       --header-bg: #1a2332;
-      --header-text: #ffffff;
       --primary: #1565c0;
       --primary-light: #e3f2fd;
       --success: #2e7d32;
@@ -28,336 +28,191 @@
       --border: #e0e0e0;
       --shadow: 0 2px 8px rgba(0,0,0,0.10);
       --radius: 10px;
+      --edit-accent: #7c4dff;
     }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      font-size: 14px;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
 
     /* ── Header ── */
-    .header {
-      background: var(--header-bg);
-      color: var(--header-text);
-      padding: 0 24px;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-    }
+    .header { background: var(--header-bg); color: #fff; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 200; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
     .header-left { display: flex; align-items: center; gap: 12px; }
-    .header-logo {
-      width: 32px; height: 32px;
-      background: var(--primary);
-      border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 16px; color: #fff; letter-spacing: -1px;
-    }
+    .header-logo { width: 32px; height: 32px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #fff; }
     .header-title { font-size: 18px; font-weight: 600; }
-    .header-right { display: flex; align-items: center; gap: 12px; }
-    .header-meta { font-size: 12px; color: rgba(255,255,255,0.65); }
-    .btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 14px; border-radius: 6px; border: none;
-      cursor: pointer; font-size: 13px; font-weight: 500;
-      transition: all 0.15s;
-    }
-    .btn-refresh {
-      background: rgba(255,255,255,0.15);
-      color: #fff;
-    }
-    .btn-refresh:hover { background: rgba(255,255,255,0.25); }
-    .btn-refresh.spinning svg { animation: spin 0.8s linear infinite; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .header-meta { font-size: 12px; color: rgba(255,255,255,.6); }
+    .user-badge { display: flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(255,255,255,.85); }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+    .btn-ghost { background: rgba(255,255,255,.15); color: #fff; }
+    .btn-ghost:hover { background: rgba(255,255,255,.25); }
+    .btn-edit { background: rgba(124,77,255,.25); color: #d1b3ff; }
+    .btn-edit:hover { background: rgba(124,77,255,.4); }
+    .btn-edit.active { background: #7c4dff; color: #fff; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: #1976d2; }
+    .btn-danger { background: var(--danger-light); color: var(--danger); }
+    .btn-danger:hover { background: #ffcdd2; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .user-badge {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 13px; color: rgba(255,255,255,0.85);
-    }
-    .user-badge svg { opacity: 0.7; }
+    .spinning { animation: spin .8s linear infinite; }
 
     /* ── Setup screen ── */
-    .setup-screen {
-      display: none;
-      flex-direction: column; align-items: center; justify-content: center;
-      min-height: calc(100vh - 56px);
-      padding: 40px 24px;
-      text-align: center;
-    }
+    .setup-screen { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 56px); padding: 40px 24px; text-align: center; }
     .setup-screen.visible { display: flex; }
-    .setup-icon {
-      width: 72px; height: 72px; border-radius: 50%;
-      background: var(--primary-light); color: var(--primary);
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 20px;
-    }
+    .setup-icon { width: 72px; height: 72px; border-radius: 50%; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
     .setup-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
     .setup-desc { color: var(--text-secondary); max-width: 520px; line-height: 1.6; margin-bottom: 28px; }
-    .setup-box {
-      background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
-      padding: 28px 32px; max-width: 560px; width: 100%; text-align: left;
-    }
+    .setup-box { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px 32px; max-width: 560px; width: 100%; text-align: left; }
     .setup-box h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
-    .setup-step {
-      display: flex; gap: 12px; margin-bottom: 14px; font-size: 13px; line-height: 1.5;
-    }
-    .setup-num {
-      flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
-      background: var(--primary); color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700;
-    }
-    .setup-code {
-      background: #f5f5f5; border: 1px solid var(--border);
-      border-radius: 4px; padding: 2px 6px;
-      font-family: monospace; font-size: 12px; word-break: break-all;
-    }
+    .setup-step { display: flex; gap: 12px; margin-bottom: 14px; font-size: 13px; line-height: 1.5; }
+    .setup-num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+    .setup-code { background: #f5f5f5; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-family: monospace; font-size: 12px; word-break: break-all; }
 
-    /* ── Main layout ── */
-    .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    /* ── Edit mode bar ── */
+    .edit-bar { display: none; background: #f3e8ff; border-bottom: 2px solid var(--edit-accent); padding: 8px 24px; align-items: center; justify-content: space-between; gap: 12px; position: sticky; top: 56px; z-index: 150; }
+    .edit-bar.visible { display: flex; }
+    .edit-bar-info { font-size: 13px; color: var(--edit-accent); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .edit-bar-actions { display: flex; gap: 8px; }
+    .btn-reset { background: transparent; border: 1px solid var(--edit-accent); color: var(--edit-accent); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; }
+    .btn-reset:hover { background: rgba(124,77,255,.1); }
+    .btn-done { background: var(--edit-accent); color: #fff; padding: 5px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; border: none; }
 
-    .section-title {
-      font-size: 13px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.6px; color: var(--text-secondary);
-      margin-bottom: 12px; margin-top: 24px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .section-title:first-child { margin-top: 0; }
-    .section-title svg { opacity: 0.7; }
+    /* ── Error banner ── */
+    .error-banner { background: var(--danger-light); border: 1px solid #ef9a9a; border-radius: var(--radius); padding: 10px 16px; font-size: 13px; color: var(--danger); margin: 0 24px 16px; display: none; align-items: center; gap: 10px; }
+    .error-banner.visible { display: flex; }
 
-    /* ── Stat card grid ── */
-    .stat-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 14px;
-      margin-bottom: 4px;
-    }
-    .stat-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 18px 16px 14px;
-      position: relative;
-      overflow: hidden;
-      transition: transform 0.15s;
-    }
-    .stat-card:hover { transform: translateY(-1px); }
-    .stat-card-accent {
-      position: absolute; top: 0; left: 0; right: 0; height: 3px;
-      border-radius: var(--radius) var(--radius) 0 0;
-    }
-    .stat-card.primary .stat-card-accent { background: var(--primary); }
-    .stat-card.success .stat-card-accent { background: var(--success); }
-    .stat-card.moving .stat-card-accent { background: var(--moving); }
-    .stat-card.neutral .stat-card-accent { background: var(--neutral); }
-    .stat-card.warning .stat-card-accent { background: var(--warning); }
-    .stat-card.danger .stat-card-accent { background: var(--danger); }
+    /* ── Dashboard main ── */
+    .dashboard-main { padding: 20px 24px 32px; max-width: 1400px; margin: 0 auto; }
 
-    .stat-icon {
-      width: 36px; height: 36px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      margin-bottom: 10px;
-    }
-    .stat-card.primary .stat-icon { background: var(--primary-light); color: var(--primary); }
-    .stat-card.success .stat-icon { background: var(--success-light); color: var(--success); }
-    .stat-card.moving .stat-icon { background: var(--moving-light); color: var(--moving); }
-    .stat-card.neutral .stat-icon { background: var(--neutral-light); color: var(--neutral); }
-    .stat-card.warning .stat-icon { background: var(--warning-light); color: var(--warning); }
-    .stat-card.danger .stat-icon { background: var(--danger-light); color: var(--danger); }
+    /* ── Tile grid ── */
+    .tile-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    @media (max-width: 768px) { .tile-grid { grid-template-columns: 1fr; } }
 
-    .stat-value {
-      font-size: 28px; font-weight: 700; line-height: 1;
-      margin-bottom: 4px;
-    }
-    .stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
-    .stat-loading { color: var(--border); }
-    .stat-error { font-size: 12px; color: var(--danger); }
+    /* ── Tile ── */
+    .tile { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; position: relative; transition: box-shadow .2s; }
+    .tile.wide { grid-column: span 2; }
+    @media (max-width: 768px) { .tile.wide { grid-column: span 1; } }
 
-    /* ── Mid section: tasks, fleet, maintenance ── */
-    .mid-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 14px;
-    }
+    /* Edit mode tile styles */
+    body.edit-mode .tile { box-shadow: 0 0 0 2px var(--edit-accent), var(--shadow); cursor: default; }
+    body.edit-mode .tile:hover { box-shadow: 0 0 0 2px var(--edit-accent), 0 4px 16px rgba(0,0,0,.15); }
+    body.edit-mode .tile.sortable-ghost { opacity: .4; }
+    body.edit-mode .tile.sortable-chosen { box-shadow: 0 8px 24px rgba(124,77,255,.3); }
 
-    .info-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 20px;
-      min-width: 0;
-    }
-    .info-card-title {
-      font-size: 13px; font-weight: 700; margin-bottom: 16px;
-      display: flex; align-items: center; gap: 8px; color: var(--text);
-    }
-    .info-card-title svg { flex-shrink: 0; }
+    .tile-header { padding: 16px 16px 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; }
+    .tile-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 7px; flex: 1; }
+    .tile-title svg { flex-shrink: 0; }
+    .tile-body { padding: 12px 16px 16px; }
 
-    .row-list { display: flex; flex-direction: column; gap: 8px; }
-    .row-item {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 6px 0;
-      border-bottom: 1px solid var(--bg);
-    }
+    /* Tile edit controls */
+    .tile-controls { display: none; align-items: center; gap: 4px; }
+    body.edit-mode .tile-controls { display: flex; }
+    .drag-handle { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: grab; color: var(--edit-accent); border-radius: 4px; font-size: 16px; line-height: 1; }
+    .drag-handle:active { cursor: grabbing; }
+    .tile-ctrl-btn { width: 26px; height: 26px; border: none; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: background .15s; }
+    .resize-btn { background: rgba(124,77,255,.1); color: var(--edit-accent); }
+    .resize-btn:hover { background: rgba(124,77,255,.2); }
+    .remove-btn { background: var(--danger-light); color: var(--danger); }
+    .remove-btn:hover { background: #ffcdd2; }
+
+    /* ── Add tile button ── */
+    .add-tile-btn { grid-column: span 2; border: 2px dashed var(--edit-accent); border-radius: var(--radius); background: rgba(124,77,255,.04); color: var(--edit-accent); font-size: 14px; font-weight: 600; padding: 20px; cursor: pointer; display: none; align-items: center; justify-content: center; gap: 8px; transition: background .15s; }
+    .add-tile-btn:hover { background: rgba(124,77,255,.1); }
+    body.edit-mode .add-tile-btn { display: flex; }
+
+    /* ── Add tile drawer ── */
+    .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 300; display: none; }
+    .drawer-overlay.visible { display: block; }
+    .drawer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-radius: 16px 16px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,.15); z-index: 301; max-height: 70vh; display: flex; flex-direction: column; transform: translateY(100%); transition: transform .3s ease; }
+    .drawer.open { transform: translateY(0); }
+    .drawer-header { padding: 20px 24px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .drawer-title { font-size: 16px; font-weight: 700; }
+    .drawer-close { width: 32px; height: 32px; border: none; background: var(--bg); border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+    .drawer-body { overflow-y: auto; padding: 16px 24px 32px; }
+    .tile-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .palette-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; transition: all .15s; display: flex; flex-direction: column; gap: 6px; }
+    .palette-item:hover { border-color: var(--primary); background: var(--primary-light); }
+    .palette-item.already-added { opacity: .45; cursor: not-allowed; pointer-events: none; }
+    .palette-item-name { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+    .palette-item-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; }
+    .palette-item-size { font-size: 11px; color: var(--primary); font-weight: 600; }
+
+    /* ── Stat cards inside tracker-stats tile ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    @media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+    .stat-card { border-radius: 8px; padding: 14px 12px 12px; position: relative; overflow: hidden; }
+    .stat-card.primary { background: var(--primary-light); }
+    .stat-card.success { background: var(--success-light); }
+    .stat-card.moving  { background: var(--moving-light); }
+    .stat-card.neutral { background: var(--neutral-light); }
+    .stat-card.warning { background: var(--warning-light); }
+    .stat-card.danger  { background: var(--danger-light); }
+    .stat-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+    .stat-card.primary .stat-icon { background: rgba(21,101,192,.15); color: var(--primary); }
+    .stat-card.success .stat-icon { background: rgba(46,125,50,.15); color: var(--success); }
+    .stat-card.moving  .stat-icon { background: rgba(0,121,107,.15); color: var(--moving); }
+    .stat-card.neutral .stat-icon { background: rgba(84,110,122,.15); color: var(--neutral); }
+    .stat-card.warning .stat-icon { background: rgba(230,81,0,.15); color: var(--warning); }
+    .stat-card.danger  .stat-icon { background: rgba(198,40,40,.15); color: var(--danger); }
+    .stat-value { font-size: 26px; font-weight: 700; line-height: 1; margin-bottom: 3px; }
+    .stat-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .4px; }
+
+    /* ── Row list (used in task/fleet/maintenance cards) ── */
+    .row-list { display: flex; flex-direction: column; gap: 1px; }
+    .row-item { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--bg); }
     .row-item:last-child { border-bottom: none; }
-    .row-label {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 13px; color: var(--text-secondary);
-    }
-    .dot {
-      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-    }
-    .dot-success { background: var(--success); }
-    .dot-moving { background: var(--moving); }
-    .dot-warning { background: #f9a825; }
-    .dot-danger { background: var(--danger); }
-    .dot-neutral { background: var(--neutral); }
+    .row-label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .dot-primary { background: var(--primary); }
-
-    .row-value {
-      font-size: 15px; font-weight: 700;
-      min-width: 28px; text-align: right;
-    }
-    .row-value.danger { color: var(--danger); }
+    .dot-success { background: var(--success); }
+    .dot-moving  { background: var(--moving); }
+    .dot-warning { background: #f9a825; }
+    .dot-danger  { background: var(--danger); }
+    .dot-neutral { background: var(--neutral); }
+    .row-value { font-size: 15px; font-weight: 700; }
+    .row-value.danger  { color: var(--danger); }
     .row-value.warning { color: var(--warning); }
     .row-value.success { color: var(--success); }
 
-    .badge {
-      display: inline-block; padding: 2px 8px; border-radius: 20px;
-      font-size: 11px; font-weight: 600;
-    }
-    .badge-danger { background: var(--danger-light); color: var(--danger); }
-    .badge-warning { background: var(--warning-light); color: var(--warning); }
-    .badge-success { background: var(--success-light); color: var(--success); }
-    .badge-neutral { background: var(--neutral-light); color: var(--neutral); }
+    /* ── Sub section header ── */
+    .sub-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-secondary); margin: 12px 0 6px; }
 
-    /* ── Chart card ── */
-    .chart-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 20px;
-      margin-top: 4px;
-    }
-    .chart-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .chart-title {
-      font-size: 13px; font-weight: 700;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .chart-subtitle { font-size: 12px; color: var(--text-secondary); }
-    .chart-container { position: relative; height: 220px; }
+    /* ── Chart container ── */
+    .chart-wrap { position: relative; }
+    .chart-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .chart-big-num { font-size: 22px; font-weight: 700; color: var(--primary); }
+    .chart-sub { font-size: 12px; color: var(--text-secondary); }
 
     /* ── Events table ── */
-    .events-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-    .events-header {
-      padding: 16px 20px;
-      display: flex; align-items: center; justify-content: space-between;
-      border-bottom: 1px solid var(--border);
-    }
-    .events-title {
-      font-size: 13px; font-weight: 700;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .events-count {
-      font-size: 12px; color: var(--text-secondary);
-    }
-    .table-wrap { overflow-x: auto; }
-    table {
-      width: 100%; border-collapse: collapse;
-      font-size: 13px;
-    }
-    th {
-      text-align: left; padding: 10px 16px;
-      font-size: 11px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.4px; color: var(--text-secondary);
-      background: var(--bg);
-      border-bottom: 1px solid var(--border);
-    }
-    td {
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--bg);
-      color: var(--text);
-      white-space: nowrap;
-    }
+    .table-wrap { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 520px; }
+    th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--text-secondary); background: var(--bg); border-bottom: 1px solid var(--border); }
+    td { padding: 9px 12px; border-bottom: 1px solid var(--bg); color: var(--text); white-space: nowrap; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #fafafa; }
-    .event-type {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
-    }
-    .event-offline { background: var(--danger-light); color: var(--danger); }
-    .event-online { background: var(--success-light); color: var(--success); }
-    .event-alarm { background: var(--warning-light); color: var(--warning); }
-    .event-default { background: var(--neutral-light); color: var(--neutral); }
-    .empty-state {
-      text-align: center; padding: 40px 20px;
-      color: var(--text-secondary); font-size: 13px;
-    }
-    .empty-state svg { opacity: 0.3; margin-bottom: 8px; }
+    .evt-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .evt-offline { background: var(--danger-light); color: var(--danger); }
+    .evt-online  { background: var(--success-light); color: var(--success); }
+    .evt-alarm   { background: var(--warning-light); color: var(--warning); }
+    .evt-default { background: var(--neutral-light); color: var(--neutral); }
 
-    /* ── Error banner ── */
-    .error-banner {
-      background: var(--danger-light);
-      border: 1px solid #ef9a9a;
-      border-radius: var(--radius);
-      padding: 12px 16px;
-      font-size: 13px;
-      color: var(--danger);
-      margin-bottom: 16px;
-      display: none;
-      align-items: center;
-      gap: 10px;
-    }
-    .error-banner.visible { display: flex; }
+    /* ── Empty / loading states ── */
+    .empty { text-align: center; padding: 32px 16px; color: var(--text-secondary); font-size: 13px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-danger { background: var(--danger-light); color: var(--danger); }
+    .badge-warning { background: var(--warning-light); color: var(--warning); }
 
-    /* ── Skeleton loader ── */
-    .skeleton {
-      display: inline-block;
-      height: 1em; border-radius: 4px;
-      background: linear-gradient(90deg, #e0e0e0 25%, #f5f5f5 50%, #e0e0e0 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.4s infinite;
-    }
-    @keyframes shimmer { to { background-position: -200% 0; } }
+    /* ── History trend note ── */
+    .trend-note { font-size: 11px; color: var(--text-secondary); margin-top: 6px; text-align: center; font-style: italic; }
 
     /* ── Footer ── */
-    .footer {
-      text-align: center;
-      padding: 20px;
-      font-size: 12px;
-      color: var(--text-secondary);
-    }
+    .footer { text-align: center; padding: 16px; font-size: 12px; color: var(--text-secondary); }
 
-    /* ── Responsive ── */
-    @media (max-width: 600px) {
-      .main { padding: 16px; }
-      .header { padding: 0 16px; }
-      .header-title { font-size: 15px; }
-      .header-meta { display: none; }
-      .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-      .stat-value { font-size: 24px; }
-    }
+    /* ── Setup debug panel ── */
+    #debugPanel { max-width: 560px; width: 100%; margin-top: 16px; }
   </style>
 </head>
 <body>
 
-<!-- ── Header ── -->
+<!-- ══ Header ══ -->
 <header class="header">
   <div class="header-left">
     <div class="header-logo">NX</div>
@@ -365,865 +220,839 @@
   </div>
   <div class="header-right">
     <div class="user-badge">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-      </svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
       <span id="userEmail">—</span>
     </div>
     <span class="header-meta" id="lastRefreshLabel">—</span>
-    <button class="btn btn-refresh" id="refreshBtn" onclick="refresh()">
-      <svg id="refreshIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M17.65 6.35A7.96 7.96 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-      </svg>
+    <button class="btn btn-edit" id="editBtn" onclick="toggleEditMode()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      Customize
+    </button>
+    <button class="btn btn-ghost" id="refreshBtn" onclick="refresh()">
+      <svg id="refreshIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.96 7.96 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
       Refresh
     </button>
   </div>
 </header>
 
-<!-- ── Setup screen (shown when no hash) ── -->
-<div class="setup-screen" id="setupScreen">
-  <div class="setup-icon">
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-    </svg>
+<!-- ══ Edit mode bar ══ -->
+<div class="edit-bar" id="editBar">
+  <div class="edit-bar-info">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/></svg>
+    Drag tiles to reorder · click ↔ to toggle width · × to remove
   </div>
-  <h2 class="setup-title">Authentication Required</h2>
-  <p class="setup-desc">
-    This dashboard reads your Navixy account data via API. To use it, configure it as a
-    <strong>User Application</strong> in your Navixy account settings with session hash forwarding enabled.
-  </p>
-  <div class="setup-box">
-    <h3>Setup as Navixy User Application</h3>
-    <div class="setup-step">
-      <div class="setup-num">1</div>
-      <div>Go to <strong>Account Settings → User Applications</strong> in Navixy.</div>
-    </div>
-    <div class="setup-step">
-      <div class="setup-num">2</div>
-      <div>Create a new application with <strong>Display as: Embedded</strong> and the URL of this file.</div>
-    </div>
-    <div class="setup-step">
-      <div class="setup-num">3</div>
-      <div>Set <strong>Authorization: User session</strong> — Navixy will append your session hash automatically.</div>
-    </div>
-    <div class="setup-step">
-      <div class="setup-num">4</div>
-      <div>
-        For testing, you can open this page directly with your hash:<br>
-        <code class="setup-code">index.html?hash=YOUR_HASH&amp;server=https://api.eu.navixy.com</code>
-      </div>
-    </div>
+  <div class="edit-bar-actions">
+    <button class="btn-reset" onclick="resetLayout()">Reset to default</button>
+    <button class="btn-done" onclick="toggleEditMode()">Done</button>
   </div>
-  <div id="debugPanel" style="max-width:560px;width:100%;margin-top:16px"></div>
 </div>
 
-<!-- ── Dashboard ── -->
-<main class="main" id="dashboard" style="display:none">
+<!-- ══ Setup screen ══ -->
+<div class="setup-screen" id="setupScreen">
+  <div class="setup-icon">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+  </div>
+  <h2 class="setup-title">Authentication Required</h2>
+  <p class="setup-desc">Configure this as a <strong>User Application</strong> in Navixy with <strong>Session key</strong> GET parameter enabled, or open directly with <code>?session_key=YOUR_KEY</code>.</p>
+  <div class="setup-box">
+    <h3>Setup as Navixy User Application</h3>
+    <div class="setup-step"><div class="setup-num">1</div><div>Go to <strong>Account Settings → User Applications</strong> in Navixy.</div></div>
+    <div class="setup-step"><div class="setup-num">2</div><div>Create app: <strong>Display as: Embedded</strong>, <strong>GET parameters: Session key ✓</strong></div></div>
+    <div class="setup-step"><div class="setup-num">3</div><div>Or open directly: <code class="setup-code">index.html?session_key=YOUR_KEY&amp;server=https://api.eu.navixy.com</code></div></div>
+  </div>
+  <div id="debugPanel"></div>
+</div>
+
+<!-- ══ Dashboard ══ -->
+<div id="dashboardRoot" style="display:none">
   <div class="error-banner" id="errorBanner">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-    </svg>
-    <span id="errorMessage"></span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+    <span id="errorMsg"></span>
   </div>
+  <div class="dashboard-main">
+    <div class="tile-grid" id="tileGrid"></div>
+    <button class="add-tile-btn" id="addTileBtn" onclick="openDrawer()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      Add Tile
+    </button>
+  </div>
+  <div class="footer">Navixy Account Dashboard · Auto-refreshes every 60 s · Layout saved in browser</div>
+</div>
 
-  <!-- Tracking section -->
-  <div class="section-title">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-    </svg>
-    Tracking
+<!-- ══ Add-tile drawer ══ -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title">Add a Tile</div>
+    <button class="drawer-close" onclick="closeDrawer()">×</button>
   </div>
-  <div class="stat-grid">
-    <div class="stat-card primary">
-      <div class="stat-card-accent"></div>
-      <div class="stat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/>
-        </svg>
-      </div>
-      <div class="stat-value" id="totalTrackers">—</div>
-      <div class="stat-label">Total Objects</div>
-    </div>
-    <div class="stat-card success">
-      <div class="stat-card-accent"></div>
-      <div class="stat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
-        </svg>
-      </div>
-      <div class="stat-value" id="onlineTrackers">—</div>
-      <div class="stat-label">Online</div>
-    </div>
-    <div class="stat-card moving">
-      <div class="stat-card-accent"></div>
-      <div class="stat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M18.92 5.01C18.72 4.42 18.16 4 17.5 4h-11c-.66 0-1.21.42-1.42 1.01L3 11v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 15c-.83 0-1.5-.67-1.5-1.5S5.67 12 6.5 12s1.5.67 1.5 1.5S7.33 15 6.5 15zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 10l1.5-4.5h11L19 10H5z"/>
-        </svg>
-      </div>
-      <div class="stat-value" id="movingTrackers">—</div>
-      <div class="stat-label">Moving</div>
-    </div>
-    <div class="stat-card neutral">
-      <div class="stat-card-accent"></div>
-      <div class="stat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/>
-        </svg>
-      </div>
-      <div class="stat-value" id="parkedTrackers">—</div>
-      <div class="stat-label">Parked</div>
-    </div>
-    <div class="stat-card warning">
-      <div class="stat-card-accent"></div>
-      <div class="stat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-        </svg>
-      </div>
-      <div class="stat-value" id="idleTrackers">—</div>
-      <div class="stat-label">Idle (GPS lost)</div>
-    </div>
-    <div class="stat-card danger">
-      <div class="stat-card-accent"></div>
-      <div class="stat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20 18.54L5.46 4 4 5.46l3 3L5 11v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-6.54l1.54 1.54L20 18.54zM6.5 15c-.83 0-1.5-.67-1.5-1.5S5.67 12 6.5 12s1.5.67 1.5 1.5S7.33 15 6.5 15zM5 10l.75-2.25L7.62 10H5zm10.5 1H8.91L5 7.54V7h.59L17 18.41V17h-1.5zm2-3l-.69-.69L18 5.5H7.5L4.5 5.01C4.72 4.42 5.28 4 5.94 4h12.12c.66 0 1.22.42 1.42 1.01L21 11h-3.5z"/>
-        </svg>
-      </div>
-      <div class="stat-value" id="offlineTrackers">—</div>
-      <div class="stat-label">Offline</div>
-    </div>
+  <div class="drawer-body">
+    <div class="tile-palette" id="tilePalette"></div>
   </div>
-
-  <!-- Tasks / Fleet / Maintenance -->
-  <div class="section-title" style="margin-top:28px">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
-    </svg>
-    Tasks & Fleet
-  </div>
-  <div class="mid-grid">
-
-    <!-- Today's Tasks -->
-    <div class="info-card">
-      <div class="info-card-title">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="#1565c0">
-          <path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-        </svg>
-        Today's Tasks
-      </div>
-      <div class="row-list" id="tasksList">
-        <div class="row-item"><div class="row-label"><span class="dot dot-primary"></span>Total</div><div class="row-value" id="taskTotal">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-primary"></span>Assigned</div><div class="row-value" id="taskAssigned">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-warning"></span>In progress</div><div class="row-value" id="taskArrived">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-success"></span>Done</div><div class="row-value success" id="taskDone">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-danger"></span>Failed</div><div class="row-value danger" id="taskFailed">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-warning"></span>Delayed</div><div class="row-value warning" id="taskDelayed">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-neutral"></span>Unassigned</div><div class="row-value" id="taskUnassigned">—</div></div>
-      </div>
-    </div>
-
-    <!-- Fleet -->
-    <div class="info-card">
-      <div class="info-card-title">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="#1565c0">
-          <path d="M18.92 5.01C18.72 4.42 18.16 4 17.5 4h-11c-.66 0-1.21.42-1.42 1.01L3 11v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 15c-.83 0-1.5-.67-1.5-1.5S5.67 12 6.5 12s1.5.67 1.5 1.5S7.33 15 6.5 15zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 10l1.5-4.5h11L19 10H5z"/>
-        </svg>
-        Fleet
-      </div>
-      <div class="row-list">
-        <div class="row-item"><div class="row-label"><span class="dot dot-primary"></span>Total vehicles</div><div class="row-value" id="vehicleTotal">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-success"></span>Linked to tracker</div><div class="row-value" id="vehicleLinked">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-neutral"></span>Unlinked</div><div class="row-value" id="vehicleUnlinked">—</div></div>
-      </div>
-
-      <div style="margin-top: 18px; margin-bottom: 10px; font-size: 13px; font-weight: 600; color: var(--text-secondary);">
-        Fuel Types
-      </div>
-      <div class="row-list" id="fuelTypesList">
-        <div class="row-item">
-          <div class="row-label"><span class="dot dot-neutral"></span>—</div>
-          <div class="row-value">—</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Maintenance -->
-    <div class="info-card">
-      <div class="info-card-title">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="#1565c0">
-          <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
-        </svg>
-        Maintenance
-      </div>
-      <div class="row-list">
-        <div class="row-item"><div class="row-label"><span class="dot dot-danger"></span>Expired</div><div class="row-value danger" id="svcExpired">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-warning"></span>Due soon</div><div class="row-value warning" id="svcNotified">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-primary"></span>Scheduled</div><div class="row-value" id="svcCreated">—</div></div>
-        <div class="row-item"><div class="row-label"><span class="dot dot-success"></span>Completed</div><div class="row-value success" id="svcDone">—</div></div>
-      </div>
-      <div id="svcExpiredList" style="margin-top:14px"></div>
-    </div>
-
-  </div>
-
-  <!-- Mileage Chart -->
-  <div class="section-title" style="margin-top:28px">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
-    </svg>
-    Mileage (Last 7 Days)
-  </div>
-  <div class="chart-card">
-    <div class="chart-header">
-      <div>
-        <div class="chart-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--primary)">
-            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-7-2l-4-4 1.41-1.41L12 14.17l6.59-6.58L20 9l-8 8z"/>
-          </svg>
-          Fleet Total Mileage
-        </div>
-        <div class="chart-subtitle">Combined distance across all tracked objects per day</div>
-      </div>
-      <div id="totalMileageBadge" style="font-size:22px;font-weight:700;color:var(--primary)">—</div>
-    </div>
-    <div class="chart-container">
-      <canvas id="mileageChart"></canvas>
-    </div>
-  </div>
-
-  <!-- Mileage per tracker (top 10) -->
-  <div class="section-title" style="margin-top:28px">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-    </svg>
-    Top Objects by Mileage (Last 7 Days)
-  </div>
-  <div class="chart-card">
-    <div class="chart-container" style="height:280px">
-      <canvas id="topMileageChart"></canvas>
-    </div>
-  </div>
-
-  <!-- Recent Events -->
-  <div class="section-title" style="margin-top:28px">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
-    </svg>
-    Recent Events
-  </div>
-  <div class="events-card">
-    <div class="events-header">
-      <div class="events-title">
-        Latest Tracker Activity
-      </div>
-      <div class="events-count" id="eventsCount">Loading…</div>
-    </div>
-    <div class="table-wrap">
-      <table id="eventsTable">
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Object</th>
-            <th>Event</th>
-            <th>Message</th>
-            <th>Location</th>
-          </tr>
-        </thead>
-        <tbody id="eventsBody">
-          <tr><td colspan="5"><div class="empty-state">Loading events…</div></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="footer">
-    Navixy Account Dashboard &nbsp;·&nbsp; Auto-refreshes every 60 seconds
-  </div>
-</main>
+</div>
 
 <script>
-// ─────────────────────────────────────────────
-// Config
-// ─────────────────────────────────────────────
-const params = new URLSearchParams(window.location.search);
-// Navixy may pass the session key under different names depending on the platform version
-const HASH   = params.get('hash')
-            || params.get('session_hash')
-            || params.get('session_key')
-            || params.get('key')
-            || params.get('token')
-            || '';
-const SERVER = (params.get('server') || 'https://api.eu.navixy.com').replace(/\/$/, '');
-const BASE   = `${SERVER}/v2`;
+// ════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════
+const params  = new URLSearchParams(window.location.search);
+const HASH    = params.get('session_key') || params.get('hash') || params.get('session_hash') || params.get('key') || params.get('token') || '';
+const SERVER  = (params.get('server') || 'https://api.eu.navixy.com').replace(/\/$/, '');
+const BASE    = `${SERVER}/v2`;
+const HISTORY_KEY  = 'nvx_conn_history_' + HASH.slice(0, 8);
+const LAYOUT_KEY   = 'nvx_layout_v2';
+const MAX_HISTORY  = 120; // data points
 
-let mileageChart = null;
-let topMileageChart = null;
-let refreshTimer  = null;
-let isLoading     = false;
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+let cache    = {};          // shared data cache
+let layout   = [];          // [ { tileId, size } ]  size: 'normal' | 'wide'
+let editMode = false;
+let sortable = null;
+let charts   = {};          // { tileId: Chart }
+let isLoading = false;
+let connHistory = [];       // [ { t, online, offline, idle, moving } ]
 
-// ─────────────────────────────────────────────
-// Bootstrap
-// ─────────────────────────────────────────────
-if (!HASH) {
-  document.getElementById('setupScreen').classList.add('visible');
-  // Show debug panel: list all URL params received so we can see what Navixy passes
-  const allParams = [...params.entries()];
-  const debugEl = document.getElementById('debugPanel');
-  if (allParams.length > 0) {
-    debugEl.innerHTML = `
-      <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:16px 20px;font-size:13px">
-        <div style="font-weight:700;margin-bottom:10px;color:#e65100">
-          ⚠ URL parameters detected but no recognised hash found
-        </div>
-        <div style="color:#616161;margin-bottom:8px">
-          Parameters received (values masked for security):
-        </div>
-        ${allParams.map(([k, v]) => `
-          <div style="font-family:monospace;padding:3px 0;color:#212121">
-            <strong>${k}</strong> = ${k.toLowerCase().includes('hash') || k.toLowerCase().includes('key') || k.toLowerCase().includes('token') ? '••••••••' : v}
-          </div>
-        `).join('')}
-        <div style="margin-top:10px;color:#616161">
-          If you see a hash/key above with a masked value, update the code to read that parameter name.
-        </div>
-      </div>
-    `;
-  } else {
-    debugEl.innerHTML = `
-      <div style="background:#f3f3f3;border:1px solid #e0e0e0;border-radius:10px;padding:14px 20px;font-size:13px;color:#757575">
-        No URL parameters received. If opened from Navixy, ensure <strong>Session key</strong> is enabled in GET parameters.
-      </div>
-    `;
+// ════════════════════════════════════════════════
+// TILE REGISTRY
+// ════════════════════════════════════════════════
+const TILE_DEFS = {
+  'tracker-stats': {
+    label: 'Tracker Status',
+    desc:  'Online, offline, moving, parked, idle counts',
+    icon:  iconPath('M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'),
+    defaultSize: 'wide',
+    needs: ['states'],
+    render: renderTrackerStats
+  },
+  'tracker-pie': {
+    label: 'Status Distribution',
+    desc:  'Pie chart of online / idle / offline',
+    icon:  iconPath('M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z'),
+    defaultSize: 'normal',
+    needs: ['states'],
+    render: renderTrackerPie
+  },
+  'connection-trend': {
+    label: 'Connection Trend',
+    desc:  'Online / offline count over time (session history)',
+    icon:  iconPath('M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z'),
+    defaultSize: 'wide',
+    needs: [],   // uses connHistory
+    render: renderConnectionTrend
+  },
+  'tasks-today': {
+    label: "Today's Tasks",
+    desc:  'Task counts by status for today',
+    icon:  iconPath('M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z'),
+    defaultSize: 'normal',
+    needs: ['tasks'],
+    render: renderTasksToday
+  },
+  'tasks-pie': {
+    label: 'Task Distribution',
+    desc:  'Pie chart of task statuses',
+    icon:  iconPath('M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2.03 0v8.99H22c-.47-4.74-4.24-8.52-8.97-8.99zm0 11.01V22c4.74-.47 8.5-4.25 8.97-8.99h-8.97z'),
+    defaultSize: 'normal',
+    needs: ['tasks'],
+    render: renderTasksPie
+  },
+  'fleet-overview': {
+    label: 'Fleet Overview',
+    desc:  'Vehicle counts, tracker linkage, fuel types',
+    icon:  iconPath('M18.92 5.01C18.72 4.42 18.16 4 17.5 4h-11c-.66 0-1.21.42-1.42 1.01L3 11v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 15c-.83 0-1.5-.67-1.5-1.5S5.67 12 6.5 12s1.5.67 1.5 1.5S7.33 15 6.5 15zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 10l1.5-4.5h11L19 10H5z'),
+    defaultSize: 'normal',
+    needs: ['vehicles'],
+    render: renderFleetOverview
+  },
+  'maintenance': {
+    label: 'Maintenance',
+    desc:  'Service tasks: expired, due soon, scheduled',
+    icon:  iconPath('M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z'),
+    defaultSize: 'normal',
+    needs: ['serviceTasks'],
+    render: renderMaintenance
+  },
+  'mileage-bar': {
+    label: 'Mileage – Bar Chart',
+    desc:  '7-day fleet mileage as a bar chart',
+    icon:  iconPath('M5 9.2h3V19H5V9.2zM10.6 5h2.8v14h-2.8V5zm5.6 8H19v6h-2.8v-6z'),
+    defaultSize: 'wide',
+    needs: ['mileage'],
+    render: renderMileageBar
+  },
+  'mileage-line': {
+    label: 'Mileage – Line Chart',
+    desc:  '7-day fleet mileage as a trend line',
+    icon:  iconPath('M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z'),
+    defaultSize: 'wide',
+    needs: ['mileage'],
+    render: renderMileageLine
+  },
+  'top-objects': {
+    label: 'Top Objects by Mileage',
+    desc:  'Top 10 objects ranked by 7-day mileage',
+    icon:  iconPath('M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z'),
+    defaultSize: 'normal',
+    needs: ['mileage'],
+    render: renderTopObjects
+  },
+  'events-table': {
+    label: 'Recent Events',
+    desc:  'Last 30 tracker events from the past 24 h',
+    icon:  iconPath('M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z'),
+    defaultSize: 'wide',
+    needs: ['events'],
+    render: renderEventsTable
   }
-} else {
-  document.getElementById('dashboard').style.display = 'block';
-  refresh();
-  refreshTimer = setInterval(refresh, 60000);
+};
+
+const DEFAULT_LAYOUT = [
+  { tileId: 'tracker-stats',    size: 'wide'   },
+  { tileId: 'tasks-today',      size: 'normal' },
+  { tileId: 'fleet-overview',   size: 'normal' },
+  { tileId: 'maintenance',      size: 'normal' },
+  { tileId: 'tracker-pie',      size: 'normal' },
+  { tileId: 'mileage-bar',      size: 'wide'   },
+  { tileId: 'top-objects',      size: 'normal' },
+  { tileId: 'connection-trend', size: 'wide'   },
+  { tileId: 'events-table',     size: 'wide'   },
+];
+
+function iconPath(d) {
+  return `<svg width="15" height="15" viewBox="0 0 24 24" fill="var(--primary)"><path d="${d}"/></svg>`;
 }
 
-// ─────────────────────────────────────────────
-// API helper
-// ─────────────────────────────────────────────
+// ════════════════════════════════════════════════
+// LAYOUT PERSISTENCE
+// ════════════════════════════════════════════════
+function loadLayout() {
+  try { return JSON.parse(localStorage.getItem(LAYOUT_KEY)) || null; } catch { return null; }
+}
+function saveLayout() {
+  localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+}
+function resetLayout() {
+  layout = DEFAULT_LAYOUT.map(t => ({ ...t }));
+  saveLayout();
+  renderLayout();
+}
+
+function loadConnHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; }
+}
+function saveConnHistory() {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(connHistory));
+}
+
+// ════════════════════════════════════════════════
+// API HELPER
+// ════════════════════════════════════════════════
 async function api(endpoint, body = {}) {
-  const res = await fetch(`${BASE}${endpoint}`, {
-    method : 'POST',
+  const r = await fetch(`${BASE}${endpoint}`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body   : JSON.stringify({ hash: HASH, ...body })
+    body: JSON.stringify({ hash: HASH, ...body })
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  if (!data.success) {
-    const msg = data.status?.description || data.status?.code || 'API error';
-    throw new Error(msg);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const d = await r.json();
+  if (!d.success) throw new Error(d.status?.description || d.status?.code || 'API error');
+  return d;
+}
+
+// ════════════════════════════════════════════════
+// DATE HELPERS
+// ════════════════════════════════════════════════
+const pad = n => String(n).padStart(2, '0');
+function fmtDT(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+function todayStart() { const d = new Date(); d.setHours(0,0,0,0); return fmtDT(d); }
+function todayEnd()   { const d = new Date(); d.setHours(23,59,59,0); return fmtDT(d); }
+function daysAgo(n)   { const d = new Date(); d.setDate(d.getDate()-n); d.setHours(0,0,0,0); return fmtDT(d); }
+function shortDate(iso) {
+  try { return new Date(iso+'T00:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'}); } catch { return iso; }
+}
+function fmtTime(ts) {
+  try { return new Date(ts).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}); } catch { return '—'; }
+}
+function fmtDateTime(str) {
+  try { return new Date(str.replace(' ','T')).toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); } catch { return str; }
+}
+
+// ════════════════════════════════════════════════
+// DATA FETCHING
+// ════════════════════════════════════════════════
+async function fetchAll() {
+  // Parallel: trackers+states, tasks, vehicles, service tasks, events
+  const [trkRes, taskRes, vehRes, svcRes] = await Promise.allSettled([
+    fetchTrackers(),
+    fetchTasks(),
+    fetchVehicles(),
+    fetchServiceTasks()
+  ]);
+
+  // Mileage needs tracker IDs
+  const ids = cache.trackerIds || [];
+  if (ids.length > 0) await fetchMileage(ids).catch(e => console.warn('mileage:', e));
+  else cache.mileage = null;
+
+  // Events needs tracker IDs (first 100)
+  await fetchEvents(ids.slice(0, 100)).catch(e => console.warn('events:', e));
+
+  // Update connection history
+  appendConnHistory();
+}
+
+async function fetchTrackers() {
+  const listData = await api('/tracker/list');
+  const trackers = listData.list || [];
+  cache.trackers = trackers;
+  const ids = trackers.map(t => t.id);
+  cache.trackerIds = ids;
+
+  if (ids.length === 0) {
+    cache.states = {};
+    cache.statusCounts = { online:0, moving:0, parked:0, idle:0, offline:0 };
+    return;
   }
-  return data;
+
+  // Batch get_states
+  const allStates = {};
+  const BATCH = 100;
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const batch = ids.slice(i, i+BATCH);
+    try {
+      const sd = await api('/tracker/get_states', { trackers: batch });
+      Object.assign(allStates, sd.states || {});
+    } catch(e) { console.warn('get_states:', e); }
+  }
+  cache.states = allStates;
+
+  let online=0, moving=0, parked=0, idle=0, offline=0;
+  Object.values(allStates).forEach(s => {
+    if (s.connection_status === 'active')   online++;
+    else if (s.connection_status === 'idle') idle++;
+    else                                    offline++;
+    if (s.movement_status === 'moving') moving++;
+    else                                parked++;
+  });
+  offline += ids.length - Object.keys(allStates).length;
+
+  cache.statusCounts = { online, moving, parked, idle, offline };
 }
 
-// ─────────────────────────────────────────────
-// Date helpers
-// ─────────────────────────────────────────────
-function fmtDateTime(d) {
-  // Returns "YYYY-MM-DD HH:MM:SS" for a Date object
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ` +
-         `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-function todayStart() {
-  const d = new Date(); d.setHours(0,0,0,0); return fmtDateTime(d);
-}
-function todayEnd() {
-  const d = new Date(); d.setHours(23,59,59,0); return fmtDateTime(d);
-}
-function daysAgoStart(n) {
-  const d = new Date(); d.setDate(d.getDate() - n); d.setHours(0,0,0,0); return fmtDateTime(d);
-}
-function fmtDate(str) {
-  // "2026-02-23 14:35:00" → "Feb 23, 14:35"
-  try {
-    const dt = new Date(str.replace(' ', 'T'));
-    return dt.toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
-  } catch { return str; }
-}
-function shortDate(str) {
-  // "2026-02-23" → "Feb 23"
-  try {
-    const d = new Date(str + 'T00:00:00');
-    return d.toLocaleDateString(undefined, { month:'short', day:'numeric' });
-  } catch { return str; }
+async function fetchTasks() {
+  const d = await api('/task/list', { from: todayStart(), to: todayEnd(), limit: 10000 });
+  cache.tasks = d.list || [];
+  const c = { assigned:0, arrived:0, done:0, failed:0, delayed:0, unassigned:0, faulty:0 };
+  cache.tasks.forEach(t => { if (c[t.status]!==undefined) c[t.status]++; });
+  cache.taskCounts = c;
 }
 
-// ─────────────────────────────────────────────
-// Main refresh
-// ─────────────────────────────────────────────
+async function fetchVehicles() {
+  const d = await api('/vehicle/list', { limit: 10000 });
+  cache.vehicles = d.list || [];
+}
+
+async function fetchServiceTasks() {
+  const d = await api('/vehicle/service_task/list', { limit: 10000 });
+  const tasks = d.list || [];
+  cache.serviceTasks = tasks;
+  cache.svcCounts = { expired:0, notified:0, created:0, done:0 };
+  tasks.forEach(t => { if (cache.svcCounts[t.status]!==undefined) cache.svcCounts[t.status]++; });
+}
+
+async function fetchMileage(ids) {
+  const d = await api('/tracker/stats/mileage/read', {
+    trackers: ids, from: daysAgo(6), to: fmtDT(new Date())
+  });
+  cache.mileageResult = d.result || {};
+
+  // Build 7-day array
+  const days = [];
+  for (let i=6; i>=0; i--) {
+    const dd = new Date(); dd.setDate(dd.getDate()-i);
+    days.push(dd.toISOString().slice(0,10));
+  }
+  const daily = {};
+  days.forEach(d => { daily[d] = 0; });
+
+  const perTracker = {};
+  Object.entries(cache.mileageResult).forEach(([tid, dayMap]) => {
+    let tot = 0;
+    Object.entries(dayMap).forEach(([date, val]) => {
+      const km = typeof val === 'object' ? (val.mileage||0) : (val||0);
+      if (daily[date]!==undefined) daily[date] += km;
+      tot += km;
+    });
+    if (tot > 0) perTracker[tid] = tot;
+  });
+
+  cache.mileage = {
+    days,
+    totals: days.map(d => Math.round((daily[d]||0)*10)/10),
+    grandTotal: days.reduce((s,d)=>s+(daily[d]||0), 0),
+    perTracker
+  };
+}
+
+async function fetchEvents(ids) {
+  if (!ids.length) { cache.events = []; cache.eventTotal = 0; return; }
+  const d = await api('/history/tracker/list', {
+    trackers: ids, from: daysAgo(1), to: fmtDT(new Date()),
+    limit: 30, ascending: false
+  });
+  cache.events = d.list || [];
+  cache.eventTotal = d.total || cache.events.length;
+}
+
+function appendConnHistory() {
+  const c = cache.statusCounts;
+  if (!c) return;
+  connHistory.push({ t: Date.now(), online: c.online, offline: c.offline, idle: c.idle, moving: c.moving });
+  if (connHistory.length > MAX_HISTORY) connHistory = connHistory.slice(-MAX_HISTORY);
+  saveConnHistory();
+}
+
+// ════════════════════════════════════════════════
+// TILE RENDERERS
+// ════════════════════════════════════════════════
+
+function renderTrackerStats(body) {
+  const sc = cache.statusCounts || {};
+  const total = (cache.trackers||[]).length;
+  body.innerHTML = `<div class="stat-grid">
+    ${sCard('primary', total,         'Total Objects', 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z')}
+    ${sCard('success', sc.online??'—', 'Online',        'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z')}
+    ${sCard('moving',  sc.moving??'—', 'Moving',        'M18.92 5.01C18.72 4.42 18.16 4 17.5 4h-11c-.66 0-1.21.42-1.42 1.01L3 11v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 15c-.83 0-1.5-.67-1.5-1.5S5.67 12 6.5 12s1.5.67 1.5 1.5S7.33 15 6.5 15zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 10l1.5-4.5h11L19 10H5z')}
+    ${sCard('neutral', sc.parked??'—', 'Parked',        'M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z')}
+    ${sCard('warning', sc.idle??'—',   'Idle/No GPS',   'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z')}
+    ${sCard('danger',  sc.offline??'—','Offline',       'M20 18.54L5.46 4 4 5.46l3 3L5 11v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h8v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-6.54l1.54 1.54L20 18.54z')}
+  </div>`;
+}
+
+function sCard(type, val, label, path) {
+  return `<div class="stat-card ${type}">
+    <div class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="${path}"/></svg></div>
+    <div class="stat-value">${val}</div>
+    <div class="stat-label">${label}</div>
+  </div>`;
+}
+
+function renderTrackerPie(body, tileId) {
+  const sc = cache.statusCounts || {};
+  const vals = [sc.online||0, sc.moving||0, sc.idle||0, sc.offline||0];
+  if (vals.every(v=>v===0)) { body.innerHTML='<div class="empty">No data yet</div>'; return; }
+  body.innerHTML = `<div class="chart-wrap" style="height:200px"><canvas id="c_${tileId}"></canvas></div>`;
+  newChart(tileId, `c_${tileId}`, 'doughnut', {
+    labels: ['Online (active)', 'Moving', 'Idle/GPS lost', 'Offline'],
+    datasets: [{ data: vals, backgroundColor: ['#2e7d32','#00796b','#e65100','#c62828'], borderWidth: 0, hoverOffset: 4 }]
+  }, {
+    plugins: { legend: { position:'bottom', labels: { font:{size:11}, padding:10 } }, tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed}` } } },
+    cutout: '65%'
+  });
+}
+
+function renderConnectionTrend(body, tileId) {
+  if (connHistory.length < 2) {
+    body.innerHTML = `<div class="empty">Building history…<br><span style="font-size:11px">Refreshes every 60 s — come back in a few minutes</span></div>`;
+    return;
+  }
+  const labels = connHistory.map(h => fmtTime(h.t));
+  body.innerHTML = `<div class="chart-wrap" style="height:200px"><canvas id="c_${tileId}"></canvas></div>
+    <p class="trend-note">${connHistory.length} data point${connHistory.length!==1?'s':''} · updates every 60 s</p>`;
+  newChart(tileId, `c_${tileId}`, 'line', {
+    labels,
+    datasets: [
+      lineDS('Online',    connHistory.map(h=>h.online),  '#2e7d32', '#e8f5e9'),
+      lineDS('Moving',    connHistory.map(h=>h.moving),  '#00796b', '#e0f2f1'),
+      lineDS('Idle',      connHistory.map(h=>h.idle),    '#f9a825', '#fffde7'),
+      lineDS('Offline',   connHistory.map(h=>h.offline), '#c62828', '#ffebee'),
+    ]
+  }, {
+    plugins: { legend: { position:'bottom', labels:{ font:{size:11}, padding:10, boxWidth:10 } }, tooltip:{ mode:'index', intersect:false } },
+    scales: {
+      x: { grid:{display:false}, ticks:{ maxTicksLimit:8, font:{size:11} } },
+      y: { beginAtZero:true, grid:{ color:'rgba(0,0,0,0.04)' }, ticks:{ font:{size:11} } }
+    },
+    interaction: { mode:'index', intersect:false }
+  });
+}
+
+function lineDS(label, data, color, fill) {
+  return { label, data, borderColor: color, backgroundColor: fill, borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false };
+}
+
+function renderTasksToday(body) {
+  const c = cache.taskCounts || {};
+  const total = (cache.tasks||[]).length;
+  body.innerHTML = `<div class="row-list">
+    ${rRow('dot-primary','Total',      total,             '')}
+    ${rRow('dot-primary','Assigned',   c.assigned||0,     '')}
+    ${rRow('dot-warning','In progress',c.arrived||0,      '')}
+    ${rRow('dot-success','Done',       c.done||0,         'success')}
+    ${rRow('dot-danger', 'Failed',     c.failed||0,       'danger')}
+    ${rRow('dot-warning','Delayed',    c.delayed||0,      'warning')}
+    ${rRow('dot-neutral','Unassigned', (c.unassigned||0)+(c.faulty||0), '')}
+  </div>`;
+}
+
+function renderTasksPie(body, tileId) {
+  const c = cache.taskCounts || {};
+  const vals = [c.assigned||0, c.arrived||0, c.done||0, c.failed||0, c.delayed||0, c.unassigned||0];
+  if (vals.every(v=>v===0)) { body.innerHTML='<div class="empty">No tasks today</div>'; return; }
+  body.innerHTML = `<div class="chart-wrap" style="height:200px"><canvas id="c_${tileId}"></canvas></div>`;
+  newChart(tileId, `c_${tileId}`, 'doughnut', {
+    labels: ['Assigned','In progress','Done','Failed','Delayed','Unassigned'],
+    datasets: [{ data: vals, backgroundColor: ['#1565c0','#e65100','#2e7d32','#c62828','#f9a825','#546e7a'], borderWidth:0, hoverOffset:4 }]
+  }, {
+    plugins: { legend:{ position:'bottom', labels:{font:{size:11},padding:8} }, tooltip:{callbacks:{label:c=>` ${c.label}: ${c.parsed}`}} },
+    cutout: '65%'
+  });
+}
+
+function renderFleetOverview(body) {
+  const v = cache.vehicles || [];
+  const linked   = v.filter(x=>x.tracker_id).length;
+  const unlinked = v.length - linked;
+
+  const fuelMap = {};
+  v.forEach(x => { const f = x.fuel_type||'unknown'; fuelMap[f]=(fuelMap[f]||0)+1; });
+  const fuelRows = Object.entries(fuelMap).sort((a,b)=>b[1]-a[1]).map(([t,n]) =>
+    rRow('dot-neutral', cap(t), n, '')).join('');
+
+  body.innerHTML = `<div class="row-list">
+    ${rRow('dot-primary','Total vehicles', v.length,  '')}
+    ${rRow('dot-success','Linked to tracker', linked, '')}
+    ${rRow('dot-neutral','Unlinked',       unlinked,  '')}
+  </div>
+  <div class="sub-head">Fuel types</div>
+  <div class="row-list">${fuelRows || '<div class="empty" style="padding:8px 0">No vehicles</div>'}</div>`;
+}
+
+function renderMaintenance(body) {
+  const sc = cache.svcCounts || {};
+  const expired = cache.serviceTasks?.filter(t=>t.status==='expired') || [];
+  body.innerHTML = `<div class="row-list">
+    ${rRow('dot-danger', 'Expired',   sc.expired||0,  'danger')}
+    ${rRow('dot-warning','Due soon',  sc.notified||0, 'warning')}
+    ${rRow('dot-primary','Scheduled', sc.created||0,  '')}
+    ${rRow('dot-success','Completed', sc.done||0,     'success')}
+  </div>
+  ${expired.length ? `<div class="sub-head" style="color:var(--danger)">Overdue</div>
+    <div class="row-list">${expired.slice(0,4).map(t=>`
+      <div class="row-item">
+        <div class="row-label" style="overflow:hidden"><span class="dot dot-danger"></span><span style="overflow:hidden;text-overflow:ellipsis">${t.vehicle_label||'—'}</span></div>
+        <span class="badge badge-danger" style="flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis">${t.description||'—'}</span>
+      </div>`).join('')}
+    ${expired.length>4?`<div style="font-size:11px;color:var(--danger);margin-top:4px">+${expired.length-4} more</div>`:''}</div>` : ''}`;
+}
+
+function renderMileageBar(body, tileId) {
+  const m = cache.mileage;
+  if (!m) { body.innerHTML='<div class="empty">No mileage data</div>'; return; }
+  const total = Math.round(m.grandTotal);
+  body.innerHTML = `<div class="chart-meta">
+    <div><div class="chart-big-num">${total.toLocaleString()} km</div><div class="chart-sub">Fleet total · last 7 days</div></div>
+  </div><div class="chart-wrap" style="height:200px"><canvas id="c_${tileId}"></canvas></div>`;
+  newChart(tileId, `c_${tileId}`, 'bar', {
+    labels: m.days.map(shortDate),
+    datasets: [{ label:'Total km', data: m.totals, backgroundColor:'rgba(21,101,192,.75)', borderColor:'rgba(21,101,192,1)', borderWidth:1, borderRadius:5, borderSkipped:false }]
+  }, barOpts());
+}
+
+function renderMileageLine(body, tileId) {
+  const m = cache.mileage;
+  if (!m) { body.innerHTML='<div class="empty">No mileage data</div>'; return; }
+  const total = Math.round(m.grandTotal);
+  body.innerHTML = `<div class="chart-meta">
+    <div><div class="chart-big-num">${total.toLocaleString()} km</div><div class="chart-sub">Fleet total · last 7 days</div></div>
+  </div><div class="chart-wrap" style="height:200px"><canvas id="c_${tileId}"></canvas></div>`;
+  newChart(tileId, `c_${tileId}`, 'line', {
+    labels: m.days.map(shortDate),
+    datasets: [{ label:'Total km', data: m.totals, borderColor:'#1565c0', backgroundColor:'rgba(21,101,192,.1)', borderWidth:2, pointRadius:4, tension:0.3, fill:true }]
+  }, lineOpts());
+}
+
+function renderTopObjects(body, tileId) {
+  const m = cache.mileage;
+  if (!m || !Object.keys(m.perTracker).length) { body.innerHTML='<div class="empty">No mileage data</div>'; return; }
+  const top = Object.entries(m.perTracker).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  // Try to match tracker labels
+  const trackerMap = {};
+  (cache.trackers||[]).forEach(t => { trackerMap[t.id] = t.label||`#${t.id}`; });
+  const labels = top.map(([id]) => trackerMap[id] || `#${id}`);
+  body.innerHTML = `<div class="chart-wrap" style="height:260px"><canvas id="c_${tileId}"></canvas></div>`;
+  const colors = ['#1565c0','#1976d2','#1e88e5','#2196f3','#42a5f5','#64b5f6','#90caf9','#bbdefb','#0d47a1','#0a3880'];
+  newChart(tileId, `c_${tileId}`, 'bar', {
+    labels,
+    datasets: [{ label:'km', data: top.map(([,v])=>Math.round(v*10)/10), backgroundColor: top.map((_,i)=>colors[i%colors.length]), borderRadius:4, borderSkipped:false }]
+  }, { ...barOpts(), indexAxis:'y' });
+}
+
+function renderEventsTable(body) {
+  const evts = cache.events || [];
+  if (!evts.length) { body.innerHTML='<div class="empty">No events in the last 24 h</div>'; return; }
+  const rows = evts.map(ev => {
+    const loc = ev.location
+      ? `<a href="https://www.google.com/maps?q=${ev.location.lat},${ev.location.lng}" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none;font-size:11px">${ev.location.lat.toFixed(4)}, ${ev.location.lng.toFixed(4)}</a>`
+      : '—';
+    return `<tr>
+      <td style="color:var(--text-secondary)">${fmtDateTime(ev.time)}</td>
+      <td style="font-weight:500">${ev.extra?.tracker_label||'#'+ev.tracker_id}</td>
+      <td><span class="evt-badge ${evtCls(ev.event)}">${ev.event||'—'}</span></td>
+      <td style="color:var(--text-secondary);max-width:220px;overflow:hidden;text-overflow:ellipsis">${ev.message||'—'}</td>
+      <td>${loc}</td>
+    </tr>`;
+  }).join('');
+  body.innerHTML = `<div style="display:flex;justify-content:flex-end;margin-bottom:8px;font-size:12px;color:var(--text-secondary)">${cache.eventTotal||evts.length} events in last 24 h</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Time</th><th>Object</th><th>Event</th><th>Message</th><th>Location</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+function evtCls(e) {
+  if (!e) return 'evt-default';
+  if (e.includes('offline')) return 'evt-offline';
+  if (e.includes('online'))  return 'evt-online';
+  if (e.includes('alarm')||e.includes('sos')||e.includes('speed')) return 'evt-alarm';
+  return 'evt-default';
+}
+
+// Row helper
+function rRow(dot, label, val, valCls) {
+  return `<div class="row-item">
+    <div class="row-label"><span class="dot ${dot}"></span>${label}</div>
+    <div class="row-value ${valCls}">${val}</div>
+  </div>`;
+}
+
+// Chart helpers
+function barOpts() {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{label:c=>` ${c.parsed[c.parsed.x!==undefined?'x':'y']===undefined?c.parsed:c.parsed} km`} } },
+    scales:{
+      y:{ beginAtZero:true, grid:{color:'rgba(0,0,0,0.04)'}, ticks:{callback:v=>v.toLocaleString()+' km',font:{size:11}} },
+      x:{ grid:{display:false}, ticks:{font:{size:11}} }
+    }
+  };
+}
+function lineOpts() {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{label:c=>` ${c.parsed.y.toLocaleString()} km`} } },
+    scales:{
+      y:{ beginAtZero:true, grid:{color:'rgba(0,0,0,0.04)'}, ticks:{callback:v=>v.toLocaleString()+' km',font:{size:11}} },
+      x:{ grid:{display:false}, ticks:{font:{size:11}} }
+    }
+  };
+}
+
+function newChart(tileId, canvasId, type, data, options) {
+  if (charts[tileId]) { try { charts[tileId].destroy(); } catch{} }
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  charts[tileId] = new Chart(ctx, { type, data, options: { ...options, responsive:true, maintainAspectRatio:false } });
+}
+
+function cap(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1).toLowerCase() : ''; }
+
+// ════════════════════════════════════════════════
+// LAYOUT RENDERING
+// ════════════════════════════════════════════════
+function renderLayout() {
+  const grid = document.getElementById('tileGrid');
+
+  // Destroy all existing charts before re-rendering
+  Object.keys(charts).forEach(id => { try { charts[id].destroy(); } catch{} });
+  charts = {};
+
+  grid.innerHTML = '';
+
+  layout.forEach((item, idx) => {
+    const def = TILE_DEFS[item.tileId];
+    if (!def) return;
+
+    const tile = document.createElement('div');
+    tile.className = 'tile' + (item.size === 'wide' ? ' wide' : '');
+    tile.dataset.idx = idx;
+    tile.dataset.tileId = item.tileId;
+
+    tile.innerHTML = `
+      <div class="tile-header">
+        <div class="tile-title">${def.icon} ${def.label}</div>
+        <div class="tile-controls">
+          <div class="drag-handle" title="Drag to reorder">⠿</div>
+          <button class="tile-ctrl-btn resize-btn" title="Toggle width" onclick="resizeTile('${item.tileId}')">↔</button>
+          <button class="tile-ctrl-btn remove-btn" title="Remove" onclick="removeTile('${item.tileId}')">×</button>
+        </div>
+      </div>
+      <div class="tile-body" id="body_${item.tileId}"></div>
+    `;
+
+    grid.appendChild(tile);
+    renderTileContent(item.tileId);
+  });
+
+  // Re-init sortable if in edit mode
+  if (editMode) initSortable();
+}
+
+function renderTileContent(tileId) {
+  const def = TILE_DEFS[tileId];
+  const body = document.getElementById(`body_${tileId}`);
+  if (!def || !body) return;
+  try { def.render(body, tileId); } catch(e) { body.innerHTML = `<div class="empty" style="color:var(--danger)">Error: ${e.message}</div>`; }
+}
+
+function renderAllTileContents() {
+  layout.forEach(item => renderTileContent(item.tileId));
+}
+
+// ════════════════════════════════════════════════
+// EDIT MODE
+// ════════════════════════════════════════════════
+function toggleEditMode() {
+  editMode = !editMode;
+  document.body.classList.toggle('edit-mode', editMode);
+  document.getElementById('editBar').classList.toggle('visible', editMode);
+  document.getElementById('editBtn').classList.toggle('active', editMode);
+  document.getElementById('editBtn').innerHTML = editMode
+    ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg> Done`
+    : `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Customize`;
+
+  if (editMode) initSortable();
+  else if (sortable) { sortable.destroy(); sortable = null; }
+}
+
+function initSortable() {
+  if (sortable) { sortable.destroy(); sortable = null; }
+  sortable = Sortable.create(document.getElementById('tileGrid'), {
+    animation: 200,
+    handle: '.drag-handle',
+    draggable: '.tile',
+    ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    onEnd(evt) {
+      const moved = layout.splice(evt.oldIndex, 1)[0];
+      layout.splice(evt.newIndex, 0, moved);
+      saveLayout();
+      // Re-render to fix canvas contexts after drag
+      renderLayout();
+    }
+  });
+}
+
+function removeTile(tileId) {
+  layout = layout.filter(t => t.tileId !== tileId);
+  saveLayout();
+  renderLayout();
+}
+
+function resizeTile(tileId) {
+  const item = layout.find(t => t.tileId === tileId);
+  if (!item) return;
+  item.size = item.size === 'wide' ? 'normal' : 'wide';
+  saveLayout();
+  renderLayout();
+}
+
+// ════════════════════════════════════════════════
+// ADD TILE DRAWER
+// ════════════════════════════════════════════════
+function openDrawer() {
+  const palette = document.getElementById('tilePalette');
+  const active = new Set(layout.map(t => t.tileId));
+  palette.innerHTML = Object.entries(TILE_DEFS).map(([id, def]) => `
+    <div class="palette-item${active.has(id)?' already-added':''}" onclick="addTile('${id}')">
+      <div class="palette-item-name">${def.icon} ${def.label}</div>
+      <div class="palette-item-desc">${def.desc}</div>
+      <div class="palette-item-size">Default: ${def.defaultSize === 'wide' ? 'Full width' : 'Half width'} ${active.has(id)?'· Already added':''}</div>
+    </div>
+  `).join('');
+  document.getElementById('drawerOverlay').classList.add('visible');
+  setTimeout(() => document.getElementById('drawer').classList.add('open'), 10);
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('visible');
+}
+
+function addTile(tileId) {
+  if (layout.find(t => t.tileId === tileId)) return;
+  const def = TILE_DEFS[tileId];
+  layout.push({ tileId, size: def.defaultSize });
+  saveLayout();
+  renderLayout();
+  closeDrawer();
+}
+
+// ════════════════════════════════════════════════
+// USER INFO
+// ════════════════════════════════════════════════
+async function loadUserInfo() {
+  try {
+    const d = await api('/user/get_info');
+    document.getElementById('userEmail').textContent = d.user_info?.login || d.user_info?.email || '—';
+  } catch {}
+}
+
+// ════════════════════════════════════════════════
+// MAIN REFRESH
+// ════════════════════════════════════════════════
 async function refresh() {
   if (isLoading) return;
   isLoading = true;
   const btn = document.getElementById('refreshBtn');
   const ico = document.getElementById('refreshIcon');
   btn.disabled = true;
-  ico.style.animation = 'spin 0.8s linear infinite';
-
-  hideError();
+  ico.classList.add('spinning');
+  document.getElementById('errorBanner').classList.remove('visible');
 
   try {
-    // 1. User info
-    loadUserInfo();
-
-    // 2. Trackers + states (parallel)
-    const [trackerData, taskData, vehicleData, svcData] = await Promise.allSettled([
-      loadTracking(),
-      loadTasks(),
-      loadFleet(),
-      loadMaintenance()
-    ]);
-
-    // Check for global errors
-    [trackerData, taskData, vehicleData, svcData].forEach(r => {
-      if (r.status === 'rejected') console.warn('Section error:', r.reason);
-    });
-
-    // 3. Mileage (needs tracker IDs from step 2)
-    if (trackerData.status === 'fulfilled' && trackerData.value?.length > 0) {
-      await loadMileage(trackerData.value);
-    } else {
-      await loadMileage([]);
-    }
-
-    // 4. Recent events (needs tracker IDs)
-    const ids = trackerData.status === 'fulfilled' ? trackerData.value : [];
-    await loadEvents(ids.slice(0, 200)); // cap at 200 for events
-
-  } catch (err) {
-    showError(`Failed to load data: ${err.message}`);
+    await fetchAll();
+    renderAllTileContents();
+    document.getElementById('lastRefreshLabel').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch(e) {
+    document.getElementById('errorMsg').textContent = `Failed to load data: ${e.message}`;
+    document.getElementById('errorBanner').classList.add('visible');
   } finally {
     isLoading = false;
     btn.disabled = false;
-    ico.style.animation = '';
-    document.getElementById('lastRefreshLabel').textContent =
-      'Updated ' + new Date().toLocaleTimeString();
+    ico.classList.remove('spinning');
   }
 }
 
-// ─────────────────────────────────────────────
-// User info
-// ─────────────────────────────────────────────
-async function loadUserInfo() {
-  try {
-    const data = await api('/user/get_info');
-    const email = data.user_info?.login || data.user_info?.email || '—';
-    document.getElementById('userEmail').textContent = email;
-  } catch (e) {
-    // Non-critical
-  }
-}
-
-// ─────────────────────────────────────────────
-// Tracking
-// ─────────────────────────────────────────────
-async function loadTracking() {
-  // Get tracker list
-  const listData = await api('/tracker/list');
-  const trackers = listData.list || [];
-  const ids = trackers.map(t => t.id);
-
-  set('totalTrackers', ids.length);
-
-  if (ids.length === 0) {
-    ['onlineTrackers','movingTrackers','parkedTrackers','idleTrackers','offlineTrackers']
-      .forEach(id => set(id, 0));
-    return ids;
-  }
-
-  // Get states in batches of 100
-  const BATCH = 100;
-  const allStates = {};
-  for (let i = 0; i < ids.length; i += BATCH) {
-    const batch = ids.slice(i, i + BATCH);
-    try {
-      const statesData = await api('/tracker/get_states', { trackers: batch });
-      Object.assign(allStates, statesData.states || {});
-    } catch (e) {
-      console.warn('get_states batch failed:', e);
-    }
-  }
-
-  let online = 0, moving = 0, parked = 0, idle = 0, offline = 0;
-  Object.values(allStates).forEach(s => {
-    const cs = s.connection_status;
-    const ms = s.movement_status;
-    if (cs === 'active') { online++; }
-    else if (cs === 'idle') { idle++; }
-    else { offline++; } // offline, signal_lost, just_registered, just_replaced
-
-    if (ms === 'moving') moving++;
-    else if (ms === 'parked') parked++;
-  });
-
-  // Add trackers not in states as offline
-  const returnedCount = Object.keys(allStates).length;
-  offline += (ids.length - returnedCount);
-
-  set('onlineTrackers', online);
-  set('movingTrackers', moving);
-  set('parkedTrackers', parked);
-  set('idleTrackers', idle);
-  set('offlineTrackers', offline);
-
-  return ids;
-}
-
-// ─────────────────────────────────────────────
-// Tasks
-// ─────────────────────────────────────────────
-async function loadTasks() {
-  const data = await api('/task/list', {
-    from  : todayStart(),
-    to    : todayEnd(),
-    limit : 10000,
-    offset: 0
-  });
-
-  const tasks = data.list || [];
-  const counts = {
-    assigned: 0, arrived: 0, done: 0, failed: 0,
-    delayed: 0, unassigned: 0, faulty: 0
-  };
-  tasks.forEach(t => {
-    const s = t.status;
-    if (counts[s] !== undefined) counts[s]++;
-  });
-
-  set('taskTotal',      tasks.length);
-  set('taskAssigned',   counts.assigned);
-  set('taskArrived',    counts.arrived);
-  set('taskDone',       counts.done);
-  set('taskFailed',     counts.failed);
-  set('taskDelayed',    counts.delayed);
-  set('taskUnassigned', counts.unassigned + counts.faulty);
-}
-
-// ─────────────────────────────────────────────
-// Fleet / Vehicles
-// ─────────────────────────────────────────────
-async function loadFleet() {
-  const data = await api('/vehicle/list', { limit: 10000, offset: 0 });
-  const vehicles = data.list || [];
-
-  const linked   = vehicles.filter(v => v.tracker_id).length;
-  const unlinked = vehicles.length - linked;
-
-  set('vehicleTotal',   vehicles.length);
-  set('vehicleLinked',  linked);
-  set('vehicleUnlinked',unlinked);
-
-  // Fuel type breakdown
-  const fuelCounts = {};
-  vehicles.forEach(v => {
-    const ft = v.fuel_type || 'unknown';
-    fuelCounts[ft] = (fuelCounts[ft] || 0) + 1;
-  });
-  const fuelEl = document.getElementById('fuelTypesList');
-  const dotColors = { petrol:'dot-warning', diesel:'dot-primary', gas:'dot-moving', electric:'dot-success', unknown:'dot-neutral' };
-  if (Object.keys(fuelCounts).length > 0) {
-    fuelEl.innerHTML = Object.entries(fuelCounts)
-      .sort((a,b) => b[1]-a[1])
-      .map(([type, count]) => `
-        <div class="row-item">
-          <div class="row-label">
-            <span class="dot ${dotColors[type] || 'dot-neutral'}"></span>
-            ${capitalize(type)}
-          </div>
-          <div class="row-value">${count}</div>
-        </div>
-      `).join('');
+// ════════════════════════════════════════════════
+// BOOTSTRAP
+// ════════════════════════════════════════════════
+if (!HASH) {
+  document.getElementById('setupScreen').classList.add('visible');
+  const allParams = [...params.entries()];
+  const dbg = document.getElementById('debugPanel');
+  if (allParams.length > 0) {
+    dbg.innerHTML = `<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:16px 20px;font-size:13px">
+      <strong style="color:#e65100">⚠ URL parameters detected but no recognised key found</strong><br><br>
+      ${allParams.map(([k,v])=>`<code>${k}</code> = ${k.toLowerCase().match(/hash|key|token/)?'••••••••':v}`).join('<br>')}
+    </div>`;
   } else {
-    fuelEl.innerHTML = '<div class="row-item"><div class="row-label" style="color:var(--text-secondary)">No vehicles</div></div>';
+    dbg.innerHTML = `<div style="background:#f3f3f3;border:1px solid #e0e0e0;border-radius:10px;padding:14px 20px;font-size:13px;color:#757575">
+      No URL parameters received. Ensure <strong>Session key</strong> is enabled in GET parameters.
+    </div>`;
   }
-}
-
-// ─────────────────────────────────────────────
-// Maintenance
-// ─────────────────────────────────────────────
-async function loadMaintenance() {
-  const data = await api('/vehicle/service_task/list', { limit: 10000, offset: 0 });
-  const tasks = data.list || [];
-
-  let expired = 0, notified = 0, created = 0, done = 0;
-  const expiredTasks = [];
-
-  tasks.forEach(t => {
-    switch (t.status) {
-      case 'expired':  expired++;  expiredTasks.push(t); break;
-      case 'notified': notified++; break;
-      case 'created':  created++;  break;
-      case 'done':     done++;     break;
-    }
-  });
-
-  set('svcExpired',  expired);
-  set('svcNotified', notified);
-  set('svcCreated',  created);
-  set('svcDone',     done);
-
-  // Show top 3 expired
-  const expiredEl = document.getElementById('svcExpiredList');
-  if (expiredTasks.length > 0) {
-    expiredEl.innerHTML = `
-      <div style="font-size:12px;font-weight:600;color:var(--danger);margin-bottom:6px">
-        Overdue:
-      </div>
-      ${expiredTasks.slice(0, 3).map(t => `
-        <div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--bg);display:flex;justify-content:space-between;align-items:center;gap:8px">
-          <span style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis">${t.vehicle_label || '—'}</span>
-          <span class="badge badge-danger" style="flex-shrink:0">${t.description || '—'}</span>
-        </div>
-      `).join('')}
-      ${expiredTasks.length > 3 ? `<div style="font-size:11px;color:var(--danger);margin-top:6px">+${expiredTasks.length-3} more overdue</div>` : ''}
-    `;
-  } else {
-    expiredEl.innerHTML = '';
-  }
-}
-
-// ─────────────────────────────────────────────
-// Mileage Chart (last 7 days)
-// ─────────────────────────────────────────────
-async function loadMileage(trackerIds) {
-  const from = daysAgoStart(6);
-  const to   = fmtDateTime(new Date());
-
-  // Build last-7-days date labels
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
-  }
-
-  if (trackerIds.length === 0) {
-    renderMileageChart(days, new Array(7).fill(0), {});
-    return;
-  }
-
-  try {
-    const data = await api('/tracker/stats/mileage/read', {
-      trackers: trackerIds,
-      from,
-      to
-    });
-
-    const result = data.result || {};
-
-    // Aggregate by day (sum all trackers)
-    const dailyTotals = {};
-    days.forEach(d => { dailyTotals[d] = 0; });
-
-    // Per-tracker totals for top-N chart
-    const trackerTotals = {};
-
-    Object.entries(result).forEach(([trackerId, dayMap]) => {
-      let tTotal = 0;
-      Object.entries(dayMap).forEach(([date, val]) => {
-        const km = typeof val === 'object' ? (val.mileage || 0) : (val || 0);
-        if (dailyTotals[date] !== undefined) dailyTotals[date] += km;
-        tTotal += km;
-      });
-      if (tTotal > 0) trackerTotals[trackerId] = tTotal;
-    });
-
-    const totals = days.map(d => Math.round(dailyTotals[d] * 10) / 10);
-    const grandTotal = totals.reduce((a, b) => a + b, 0);
-    document.getElementById('totalMileageBadge').textContent =
-      grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' km';
-
-    renderMileageChart(days, totals, trackerTotals);
-  } catch (e) {
-    console.warn('Mileage error:', e);
-    renderMileageChart(days, new Array(7).fill(0), {});
-  }
-}
-
-function renderMileageChart(days, totals, trackerTotals) {
-  const labels = days.map(shortDate);
-  const ctx = document.getElementById('mileageChart').getContext('2d');
-
-  if (mileageChart) mileageChart.destroy();
-
-  mileageChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Total km',
-        data: totals,
-        backgroundColor: 'rgba(21, 101, 192, 0.75)',
-        borderColor: 'rgba(21, 101, 192, 1)',
-        borderWidth: 1,
-        borderRadius: 5,
-        borderSkipped: false
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.parsed.y.toLocaleString()} km`
-          }
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          grid: { color: 'rgba(0,0,0,0.05)' },
-          ticks: {
-            callback: v => v.toLocaleString() + ' km',
-            font: { size: 11 }
-          }
-        },
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 11 } }
-        }
-      }
-    }
-  });
-
-  // Top trackers chart
-  const topEntries = Object.entries(trackerTotals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
-
-  const ctx2 = document.getElementById('topMileageChart').getContext('2d');
-  if (topMileageChart) topMileageChart.destroy();
-
-  if (topEntries.length > 0) {
-    const colors = [
-      '#1565c0','#1976d2','#1e88e5','#2196f3','#42a5f5',
-      '#64b5f6','#90caf9','#bbdefb','#0d47a1','#0a3880'
-    ];
-    topMileageChart = new Chart(ctx2, {
-      type: 'bar',
-      data: {
-        labels: topEntries.map(([id]) => `#${id}`),
-        datasets: [{
-          label: 'km',
-          data: topEntries.map(([,km]) => Math.round(km * 10) / 10),
-          backgroundColor: topEntries.map((_, i) => colors[i % colors.length]),
-          borderRadius: 4,
-          borderSkipped: false
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: 'y',
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.parsed.x.toLocaleString()} km`
-            }
-          }
-        },
-        scales: {
-          x: {
-            beginAtZero: true,
-            grid: { color: 'rgba(0,0,0,0.05)' },
-            ticks: { callback: v => v + ' km', font: { size: 11 } }
-          },
-          y: {
-            grid: { display: false },
-            ticks: { font: { size: 11 } }
-          }
-        }
-      }
-    });
-  } else {
-    ctx2.canvas.parentElement.innerHTML =
-      '<div class="empty-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor" style="display:block;margin:0 auto 8px"><path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>No mileage data for this period</div>';
-  }
-}
-
-// ─────────────────────────────────────────────
-// Recent Events
-// ─────────────────────────────────────────────
-async function loadEvents(trackerIds) {
-  const body = document.getElementById('eventsBody');
-  if (trackerIds.length === 0) {
-    body.innerHTML = '<tr><td colspan="5"><div class="empty-state">No trackers found.</div></td></tr>';
-    document.getElementById('eventsCount').textContent = '0 events';
-    return;
-  }
-
-  const data = await api('/history/tracker/list', {
-    trackers : trackerIds.slice(0, 100), // API limit
-    from     : daysAgoStart(1),
-    to       : fmtDateTime(new Date()),
-    limit    : 30,
-    ascending: false
-  });
-
-  const events = data.list || [];
-  document.getElementById('eventsCount').textContent = `${data.total || events.length} events in last 24h`;
-
-  if (events.length === 0) {
-    body.innerHTML = '<tr><td colspan="5"><div class="empty-state">No events in the last 24 hours.</div></td></tr>';
-    return;
-  }
-
-  body.innerHTML = events.map(ev => {
-    const typeCls = eventClass(ev.event);
-    const loc = ev.location
-      ? `<a href="https://www.google.com/maps?q=${ev.location.lat},${ev.location.lng}" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none;font-size:11px">
-          ${ev.location.lat.toFixed(4)}, ${ev.location.lng.toFixed(4)}
-         </a>`
-      : '—';
-    return `
-      <tr>
-        <td style="color:var(--text-secondary)">${fmtDate(ev.time)}</td>
-        <td style="font-weight:500">${ev.extra?.tracker_label || '#' + ev.tracker_id}</td>
-        <td><span class="event-type ${typeCls}">${ev.event || '—'}</span></td>
-        <td style="color:var(--text-secondary);max-width:260px;overflow:hidden;text-overflow:ellipsis">${ev.message || '—'}</td>
-        <td>${loc}</td>
-      </tr>
-    `;
-  }).join('');
-}
-
-function eventClass(event) {
-  if (!event) return 'event-default';
-  if (event.includes('offline'))  return 'event-offline';
-  if (event.includes('online'))   return 'event-online';
-  if (event.includes('alarm') || event.includes('sos')) return 'event-alarm';
-  if (event.includes('speeding')) return 'event-alarm';
-  return 'event-default';
-}
-
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
-function set(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = (val !== null && val !== undefined) ? val : '—';
-}
-
-function capitalize(str) {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-}
-
-function showError(msg) {
-  const b = document.getElementById('errorBanner');
-  document.getElementById('errorMessage').textContent = msg;
-  b.classList.add('visible');
-}
-function hideError() {
-  document.getElementById('errorBanner').classList.remove('visible');
+} else {
+  connHistory = loadConnHistory();
+  layout = loadLayout() || DEFAULT_LAYOUT.map(t => ({ ...t }));
+  document.getElementById('dashboardRoot').style.display = 'block';
+  renderLayout();
+  loadUserInfo();
+  refresh();
+  setInterval(refresh, 60000);
 }
 </script>
 </body>
