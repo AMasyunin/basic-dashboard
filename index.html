@@ -486,7 +486,9 @@ function fmtDateTime(str) {
 // DATA FETCHING
 // ════════════════════════════════════════════════
 async function fetchAll() {
-  // Parallel: trackers+states, tasks, vehicles, service tasks, events
+  cache.errors = {};
+
+  // Parallel: trackers+states, tasks, vehicles, service tasks
   const [trkRes, taskRes, vehRes, svcRes] = await Promise.allSettled([
     fetchTrackers(),
     fetchTasks(),
@@ -494,13 +496,24 @@ async function fetchAll() {
     fetchServiceTasks()
   ]);
 
+  // Store errors keyed by the cache/needs name so tiles can surface them
+  if (trkRes.status  === 'rejected') cache.errors.states       = trkRes.reason?.message  || 'Request failed';
+  if (taskRes.status === 'rejected') cache.errors.tasks        = taskRes.reason?.message || 'Request failed';
+  if (vehRes.status  === 'rejected') cache.errors.vehicles     = vehRes.reason?.message  || 'Request failed';
+  if (svcRes.status  === 'rejected') cache.errors.serviceTasks = svcRes.reason?.message  || 'Request failed';
+
   // Mileage needs tracker IDs
   const ids = cache.trackerIds || [];
-  if (ids.length > 0) await fetchMileage(ids).catch(e => console.warn('mileage:', e));
-  else cache.mileage = null;
+  if (ids.length > 0) {
+    try { await fetchMileage(ids); }
+    catch(e) { cache.errors.mileage = e.message || 'Request failed'; cache.mileage = null; }
+  } else {
+    cache.mileage = null;
+  }
 
   // Events needs tracker IDs (first 100)
-  await fetchEvents(ids.slice(0, 100)).catch(e => console.warn('events:', e));
+  try { await fetchEvents(ids.slice(0, 100)); }
+  catch(e) { cache.errors.events = e.message || 'Request failed'; cache.events = []; }
 
   // Update connection history
   appendConnHistory();
@@ -907,7 +920,21 @@ function renderTileContent(tileId) {
   const def = TILE_DEFS[tileId];
   const body = document.getElementById(`body_${tileId}`);
   if (!def || !body) return;
-  try { def.render(body, tileId); } catch(e) { body.innerHTML = `<div class="empty" style="color:var(--danger)">Error: ${e.message}</div>`; }
+
+  // Check if any required data module failed — surface the real error
+  const errors = cache.errors || {};
+  const failed = (def.needs || []).find(n => errors[n]);
+  if (failed) {
+    body.innerHTML = `<div class="empty">
+      <div style="color:var(--danger);font-weight:600;margin-bottom:4px">⚠ Could not load data</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">${errors[failed]}</div>
+      <button onclick="refresh()" style="font-size:12px;padding:4px 12px;border-radius:5px;border:1px solid var(--border);background:var(--card);cursor:pointer">Retry</button>
+    </div>`;
+    return;
+  }
+
+  try { def.render(body, tileId); }
+  catch(e) { body.innerHTML = `<div class="empty" style="color:var(--danger)">Render error: ${e.message}</div>`; }
 }
 
 function renderAllTileContents() {
