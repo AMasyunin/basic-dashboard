@@ -314,6 +314,7 @@ let sortable = null;
 let charts   = {};          // { tileId: Chart }
 let isLoading = false;
 let connHistory = [];       // [ { t, online, offline, idle, moving } ]
+let lastRefreshTime = 0;    // ms timestamp of last completed refresh
 
 // ════════════════════════════════════════════════
 // TILE REGISTRY
@@ -451,19 +452,28 @@ function saveConnHistory() {
 // API HELPER
 // ════════════════════════════════════════════════
 async function api(endpoint, body = {}) {
-  const r = await fetch(`${BASE}${endpoint}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ hash: HASH, ...body })
-  });
-  if (!r.ok) {
-    // Try to extract Navixy's error description from the body before giving up
-    try { const e = await r.json(); throw new Error(e.status?.description || e.status?.code || `HTTP ${r.status}`); }
-    catch(e) { throw (e.message.startsWith('HTTP') ? e : e); }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  try {
+    const r = await fetch(`${BASE}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hash: HASH, ...body }),
+      signal: controller.signal
+    });
+    if (!r.ok) {
+      // Try to extract Navixy's error description from the body before giving up
+      try { const e = await r.json(); throw new Error(e.status?.description || e.status?.code || `HTTP ${r.status}`); }
+      catch(e) { throw (e.message.startsWith('HTTP') ? e : e); }
+    }
+    const d = await r.json();
+    if (!d.success) throw new Error(d.status?.description || d.status?.code || 'API error');
+    return d;
+  } catch(e) {
+    throw controller.signal.aborted ? new Error('Request timed out') : e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  const d = await r.json();
-  if (!d.success) throw new Error(d.status?.description || d.status?.code || 'API error');
-  return d;
 }
 
 // ════════════════════════════════════════════════
@@ -661,12 +671,14 @@ function sCard(type, val, label, path) {
 
 function renderTrackerPie(body, tileId) {
   const sc = cache.statusCounts || {};
-  const vals = [sc.online||0, sc.moving||0, sc.idle||0, sc.offline||0];
+  // online/idle/offline are mutually exclusive (connection_status); moving overlaps with
+  // online so must not be a separate pie segment — it is already shown in the stat cards.
+  const vals = [sc.online||0, sc.idle||0, sc.offline||0];
   if (vals.every(v=>v===0)) { body.innerHTML='<div class="empty">No data yet</div>'; return; }
   body.innerHTML = `<div class="chart-wrap" style="height:200px"><canvas id="c_${tileId}"></canvas></div>`;
   newChart(tileId, `c_${tileId}`, 'doughnut', {
-    labels: ['Online (active)', 'Moving', 'Idle/GPS lost', 'Offline'],
-    datasets: [{ data: vals, backgroundColor: ['#2e7d32','#00796b','#e65100','#c62828'], borderWidth: 0, hoverOffset: 4 }]
+    labels: ['Online (active)', 'Idle / No GPS', 'Offline'],
+    datasets: [{ data: vals, backgroundColor: ['#2e7d32','#e65100','#c62828'], borderWidth: 0, hoverOffset: 4 }]
   }, {
     plugins: { legend: { position:'bottom', labels: { font:{size:11}, padding:10 } }, tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed}` } } },
     cutout: '65%'
@@ -739,7 +751,7 @@ function renderFleetOverview(body) {
   const fuelMap = {};
   v.forEach(x => { const f = x.fuel_type||'unknown'; fuelMap[f]=(fuelMap[f]||0)+1; });
   const fuelRows = Object.entries(fuelMap).sort((a,b)=>b[1]-a[1]).map(([t,n]) =>
-    rRow('dot-neutral', cap(t), n, '')).join('');
+    rRow('dot-neutral', escHtml(cap(t)), n, '')).join('');
 
   body.innerHTML = `<div class="row-list">
     ${rRow('dot-primary','Total vehicles', v.length,  '')}
@@ -762,8 +774,8 @@ function renderMaintenance(body) {
   ${expired.length ? `<div class="sub-head" style="color:var(--danger)">Overdue</div>
     <div class="row-list">${expired.slice(0,4).map(t=>`
       <div class="row-item">
-        <div class="row-label" style="overflow:hidden"><span class="dot dot-danger"></span><span style="overflow:hidden;text-overflow:ellipsis">${t.vehicle_label||'—'}</span></div>
-        <span class="badge badge-danger" style="flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis">${t.description||'—'}</span>
+        <div class="row-label" style="overflow:hidden"><span class="dot dot-danger"></span><span style="overflow:hidden;text-overflow:ellipsis">${escHtml(t.vehicle_label||'—')}</span></div>
+        <span class="badge badge-danger" style="flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis">${escHtml(t.description||'—')}</span>
       </div>`).join('')}
     ${expired.length>4?`<div style="font-size:11px;color:var(--danger);margin-top:4px">+${expired.length-4} more</div>`:''}</div>` : ''}`;
 }
@@ -819,9 +831,9 @@ function renderEventsTable(body) {
       : '—';
     return `<tr>
       <td style="color:var(--text-secondary)">${fmtDateTime(ev.time)}</td>
-      <td style="font-weight:500">${ev.extra?.tracker_label||'#'+ev.tracker_id}</td>
-      <td><span class="evt-badge ${evtCls(ev.event)}">${ev.event||'—'}</span></td>
-      <td style="color:var(--text-secondary);max-width:220px;overflow:hidden;text-overflow:ellipsis">${ev.message||'—'}</td>
+      <td style="font-weight:500">${escHtml(ev.extra?.tracker_label||'#'+ev.tracker_id)}</td>
+      <td><span class="evt-badge ${evtCls(ev.event)}">${escHtml(ev.event||'—')}</span></td>
+      <td style="color:var(--text-secondary);max-width:220px;overflow:hidden;text-overflow:ellipsis">${escHtml(ev.message||'—')}</td>
       <td>${loc}</td>
     </tr>`;
   }).join('');
@@ -852,7 +864,7 @@ function rRow(dot, label, val, valCls) {
 function barOpts() {
   return {
     responsive:true, maintainAspectRatio:false,
-    plugins:{ legend:{display:false}, tooltip:{ callbacks:{label:c=>` ${c.parsed[c.parsed.x!==undefined?'x':'y']===undefined?c.parsed:c.parsed} km`} } },
+    plugins:{ legend:{display:false}, tooltip:{ callbacks:{label:c=>` ${c.raw.toLocaleString()} km`} } },
     scales:{
       y:{ beginAtZero:true, grid:{color:'rgba(0,0,0,0.04)'}, ticks:{callback:v=>v.toLocaleString()+' km',font:{size:11}} },
       x:{ grid:{display:false}, ticks:{font:{size:11}} }
@@ -878,6 +890,9 @@ function newChart(tileId, canvasId, type, data, options) {
 }
 
 function cap(s) { return s ? s.charAt(0).toUpperCase()+s.slice(1).toLowerCase() : ''; }
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 // ════════════════════════════════════════════════
 // LAYOUT RENDERING
@@ -982,7 +997,9 @@ function initSortable() {
 function removeTile(tileId) {
   layout = layout.filter(t => t.tileId !== tileId);
   saveLayout();
-  renderLayout();
+  if (charts[tileId]) { try { charts[tileId].destroy(); } catch {} delete charts[tileId]; }
+  const tile = document.querySelector(`[data-tile-id="${tileId}"]`);
+  if (tile) tile.remove();
 }
 
 function resizeTile(tileId) {
@@ -990,7 +1007,11 @@ function resizeTile(tileId) {
   if (!item) return;
   item.size = item.size === 'wide' ? 'normal' : 'wide';
   saveLayout();
-  renderLayout();
+  const tile = document.querySelector(`[data-tile-id="${tileId}"]`);
+  if (tile) {
+    tile.classList.toggle('wide', item.size === 'wide');
+    if (charts[tileId]) charts[tileId].resize();
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -1050,14 +1071,21 @@ async function detectServer() {
 
   // 3. Probe known servers in parallel — first successful auth wins
   const probe = async ({ url, label }) => {
-    const r = await fetch(`${url}/v2/user/get_info`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hash: HASH })
-    });
-    const d = await r.json();
-    if (!d.success) throw new Error(`${label}: auth failed`);
-    return { url, label, userInfo: d.user_info };
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    try {
+      const r = await fetch(`${url}/v2/user/get_info`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hash: HASH }),
+        signal: controller.signal
+      });
+      const d = await r.json();
+      if (!d.success) throw new Error(`${label}: auth failed`);
+      return { url, label, userInfo: d.user_info };
+    } finally {
+      clearTimeout(timeoutId);
+    }
   };
 
   try {
@@ -1086,14 +1114,17 @@ async function loadUserInfo() {
   try {
     const d = await api('/user/get_info');
     document.getElementById('userEmail').textContent = d.user_info?.login || d.user_info?.email || '—';
-  } catch {}
+  } catch(e) {
+    console.warn('loadUserInfo:', e.message);
+    document.getElementById('userEmail').textContent = '(auth error)';
+  }
 }
 
 // ════════════════════════════════════════════════
 // MAIN REFRESH
 // ════════════════════════════════════════════════
 async function refresh() {
-  if (isLoading) return;
+  if (isLoading || document.hidden) return;
   isLoading = true;
   const btn = document.getElementById('refreshBtn');
   const ico = document.getElementById('refreshIcon');
@@ -1104,6 +1135,7 @@ async function refresh() {
   try {
     await fetchAll();
     renderAllTileContents();
+    lastRefreshTime = Date.now();
     document.getElementById('lastRefreshLabel').textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch(e) {
     document.getElementById('errorMsg').textContent = `Failed to load data: ${e.message}`;
@@ -1125,7 +1157,7 @@ if (!HASH) {
   if (allParams.length > 0) {
     dbg.innerHTML = `<div style="background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:16px 20px;font-size:13px">
       <strong style="color:#e65100">⚠ URL parameters detected but no recognised key found</strong><br><br>
-      ${allParams.map(([k,v])=>`<code>${k}</code> = ${k.toLowerCase().match(/hash|key|token/)?'••••••••':v}`).join('<br>')}
+      ${allParams.map(([k,v])=>`<code>${escHtml(k)}</code> = ${k.toLowerCase().match(/hash|key|token/)?'••••••••':escHtml(v)}`).join('<br>')}
     </div>`;
   } else {
     dbg.innerHTML = `<div style="background:#f3f3f3;border:1px solid #e0e0e0;border-radius:10px;padding:14px 20px;font-size:13px;color:#757575">
@@ -1133,6 +1165,11 @@ if (!HASH) {
     </div>`;
   }
 } else {
+  // Remove history stored under old/stale session hashes
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('nvx_conn_history_') && k !== HISTORY_KEY)
+    .forEach(k => localStorage.removeItem(k));
+
   connHistory = loadConnHistory();
   layout = loadLayout() || DEFAULT_LAYOUT.map(t => ({ ...t }));
   document.getElementById('dashboardRoot').style.display = 'block';
@@ -1153,6 +1190,10 @@ if (!HASH) {
     }
     refresh();
     setInterval(refresh, 60000);
+    // Catch up if the tab was hidden and the interval fired while invisible
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && Date.now() - lastRefreshTime > 60_000) refresh();
+    });
   });
 }
 </script>
